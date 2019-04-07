@@ -1,0 +1,13 @@
+@import 'variables';
+@import '../node_modules/bootstrap/scss/bootstrap';
+
+.wrapper {
+    position: relative;
+}
+
+.wrapper canvas {
+    border: 1px solid black;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
