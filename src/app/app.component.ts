@@ -59,15 +59,31 @@ export class AppComponent implements AfterViewInit, OnInit {
         this.glass.nativeElement.width = this.wrapper.nativeElement.offsetWidth;
         this.glassContext = this.glass.nativeElement.getContext('2d');
 
-        this.draw();
+        this.drawCanvas();
     }
 
-    draw() {
-        this.tracks.forEach(tr => {
-            this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
-            this.canvasContext.translate(tr.xc, tr.yc);
-            this.canvasContext.rotate(tr.rot);
-            this.canvasContext.stroke(tr.track.outline);
+    drawCanvas() {
+        this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
+        this.canvasContext.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
+        this.tracks
+            .filter(tr => !tr.selected || !this.dragging)
+            .forEach(tr => {
+                this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
+                this.canvasContext.translate(tr.xc, tr.yc);
+                this.canvasContext.rotate(tr.rot);
+                this.canvasContext.stroke(tr.track.outline);
+            });
+    }
+
+    drawGlass(offsetX: number, offsetY: number) {
+        this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
+        this.glassContext.clearRect(0, 0, this.glass.nativeElement.width, this.glass.nativeElement.height);
+        this.tracks.filter(tr => tr.selected)
+        .forEach(tr => {
+            this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
+            this.glassContext.translate(tr.xc + offsetX, tr.yc + offsetY);
+            this.glassContext.rotate(tr.rot);
+            this.glassContext.stroke(tr.track.outline);
         });
     }
 
@@ -85,15 +101,33 @@ export class AppComponent implements AfterViewInit, OnInit {
 
         console.log('mouse down', mx, my);
 
+        // if shift down or no selected tracks, find track under mouse and set selected
+        let selectedTracks = this.tracks.filter(tr => tr.selected);
+        this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
+        let trackAtPoint = this.tracks.find(tr => {
+            // translate the mouse point into Track coordinates
+            let px = mx - tr.xc;
+            let py = my - tr.yc;
+            let c = Math.cos(-tr.rot);
+            let s = Math.sin(-tr.rot);
+            let nx = c * px - s * py;
+            let ny = s * px + c * py;
+            console.log('point in path', nx, ny, this.canvasContext.isPointInPath(tr.track.outline, nx, ny));
+            return this.canvasContext.isPointInPath(tr.track.outline, nx, ny);
+        });
+        // TODO handle shift and no trackAtPoint
+        if (!!trackAtPoint) {
+            trackAtPoint.selected = true;
+        }
+        
+
         // save the current mouse position
         this.startX = mx;
         this.startY = my;
         this.dragging = true;
-        
-        this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
-        this.glassContext.clearRect(0, 0, this.glass.nativeElement.width, this.glass.nativeElement.height);
-        this.glassContext.translate(this.startX, this.startY);
-        this.glassContext.stroke(this.svgPath);
+
+        this.drawCanvas();
+        this.drawGlass(0, 0);
 
     }
 
@@ -109,16 +143,8 @@ export class AppComponent implements AfterViewInit, OnInit {
             let mx = e.clientX - rect.left;
             let my = e.clientY - rect.top;
                 
-            //console.log('mouse move', mx, my);
+            this.drawGlass(mx - this.startX, my - this.startY);
     
-            // save the current mouse position
-            this.startX = mx;
-            this.startY = my;
-    
-            this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
-            this.glassContext.clearRect(0, 0, this.glass.nativeElement.width, this.glass.nativeElement.height);
-            this.glassContext.translate(this.startX, this.startY);
-            this.glassContext.stroke(this.svgPath);
         }
     }
 
@@ -129,11 +155,24 @@ export class AppComponent implements AfterViewInit, OnInit {
             e.preventDefault();
             e.stopPropagation();
     
+            const rect = this.glass.nativeElement.getBoundingClientRect() as DOMRect;
+
+            // get the current mouse position
+            let mx = e.clientX - rect.left;
+            let my = e.clientY - rect.top;
+            
+            this.tracks.filter(tr => tr.selected).forEach(tr => {
+                tr.xc += mx - this.startX;
+                tr.yc += my - this.startY;
+            });
+
             // clear all the dragging flags
             this.dragging = false;
             this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
+            this.glassContext.clearRect(0, 0, this.glass.nativeElement.width, this.glass.nativeElement.height);
+            
+            this.drawCanvas();
     
-            console.log('mouse up', this.startX, this.startY);
         }
     }
 }
