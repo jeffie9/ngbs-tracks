@@ -38,7 +38,7 @@ export class AppComponent implements AfterViewInit, OnInit {
             outline: 'M-40 -10 L 40 -10 L 40 10 L -40 10 Z'
         }));
 
-        this.tracks.push(new TrackRef(this.trackLibrary[0], 100, 100, 30.0 * Math.PI / 180.0));
+        this.tracks.push(new TrackRef(this.trackLibrary[0], 100, 100, 11.25 * Math.PI / 180.0));
         this.tracks.push(new TrackRef(this.trackLibrary[1], 200, 200, 45.0 * Math.PI / 180.0));
 
     }
@@ -72,6 +72,16 @@ export class AppComponent implements AfterViewInit, OnInit {
                 this.canvasContext.translate(tr.xc, tr.yc);
                 this.canvasContext.rotate(tr.rot);
                 this.canvasContext.stroke(tr.track.outline);
+                // temporary markers
+                this.canvasContext.beginPath();
+                this.canvasContext.ellipse(tr.track.paths[0].x1, tr.track.paths[0].y1, 3, 3, 0, 0, 2 * Math.PI);
+                this.canvasContext.fill();
+                this.canvasContext.beginPath();
+                this.canvasContext.ellipse(tr.track.paths[0].x2, tr.track.paths[0].y2, 3, 3, 0, 0, 2 * Math.PI);
+                this.canvasContext.fill();
+                this.canvasContext.beginPath();
+                this.canvasContext.ellipse(0, 0, 3, 3, 0, 0, 2 * Math.PI);
+                this.canvasContext.fill();
             });
     }
 
@@ -101,8 +111,6 @@ export class AppComponent implements AfterViewInit, OnInit {
 
         console.log('mouse down', mx, my);
 
-        // if shift down or no selected tracks, find track under mouse and set selected
-        let selectedTracks = this.tracks.filter(tr => tr.selected);
         this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
         let trackAtPoint = this.tracks.find(tr => {
             // translate the mouse point into Track coordinates
@@ -115,23 +123,33 @@ export class AppComponent implements AfterViewInit, OnInit {
             console.log('point in path', nx, ny, this.canvasContext.isPointInPath(tr.track.outline, nx, ny));
             return this.canvasContext.isPointInPath(tr.track.outline, nx, ny);
         });
-        // TODO handle shift and no trackAtPoint
-        if (!!trackAtPoint) {
-            trackAtPoint.selected = true;
+
+        if (e.shiftKey) {
+            if (!!trackAtPoint) {
+                trackAtPoint.selected = !trackAtPoint.selected;
+            } // else noop
+        } else {
+            if (trackAtPoint) {
+                trackAtPoint.selected = true;
+
+                // save the current mouse position
+                this.startX = mx;
+                this.startY = my;
+                this.dragging = true;
+
+                this.drawCanvas();
+                this.drawGlass(0, 0);
+            } else {
+                // deselect everything
+                this.tracks.filter(tr => tr.selected)
+                    .forEach(t => t.selected = false);
+                // TODO start rectangle select
+            }
         }
-        
-
-        // save the current mouse position
-        this.startX = mx;
-        this.startY = my;
-        this.dragging = true;
-
-        this.drawCanvas();
-        this.drawGlass(0, 0);
 
     }
 
-    mouseMove(e) {
+    mouseMove(e: MouseEvent) {
         if (this.dragging) {
             // tell the browser we're handling this mouse event
             e.preventDefault();
@@ -148,7 +166,7 @@ export class AppComponent implements AfterViewInit, OnInit {
         }
     }
 
-    mouseUp(e) {
+    mouseUp(e: MouseEvent) {
         console.log('mouseUp', e);
         if (this.dragging) {
             // tell the browser we're handling this mouse event
@@ -161,10 +179,25 @@ export class AppComponent implements AfterViewInit, OnInit {
             let mx = e.clientX - rect.left;
             let my = e.clientY - rect.top;
             
-            this.tracks.filter(tr => tr.selected).forEach(tr => {
+            // move the tracks before finding the closest pair
+            let selectedTracks = this.tracks.filter(tr => tr.selected);
+            selectedTracks.forEach(tr => {
                 tr.xc += mx - this.startX;
                 tr.yc += my - this.startY;
             });
+
+            let unselectedTracks = this.tracks.filter(tr => !tr.selected);
+
+            let pair = TrackRef.findClosestPair(selectedTracks, unselectedTracks);
+
+            let diff = pair[0].snapTo(pair[1]);
+            console.log('snap', diff);
+            selectedTracks.forEach(tr => {
+                tr.xc += diff.dx;
+                tr.yc += diff.dy;
+                tr.rot += diff.da;
+            });
+
 
             // clear all the dragging flags
             this.dragging = false;
