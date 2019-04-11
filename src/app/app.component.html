@@ -34,14 +34,7 @@
 
     </div>
     <div class="col-sm-11">
-      <div class="wrapper" #wrapper>
-        <canvas id="canvas" style="z-index: 0" #canvas></canvas>
-        <canvas id="glass" style="z-index: 1" #glass
-            (mousedown)="mouseDown($event)"
-            (mousemove)="mouseMove($event)"
-            (mouseup)="mouseUp($event)"
-            (mouseleave)="mouseUp($event)"></canvas>
-      </div>
+      <app-layout></app-layout>
     </div>
   </div>
 </div>

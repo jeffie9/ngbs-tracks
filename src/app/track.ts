@@ -1,3 +1,19 @@
+export function transformPoints(
+        cos: number,
+        sin: number,
+        x: number,
+        y: number,
+        ...coords: number[]): number[] {
+    for (let i = 0; i < coords.length; i += 2) {
+        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
+            let newX = cos * coords[i] - sin * coords[i+1] + x;
+            coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
+            coords[i] = newX;
+        }
+    }
+    return coords;
+}
+
 export class TrackPath {
     constructor(
         public x1: number,
@@ -37,22 +53,9 @@ export class TrackPath {
      * @param y 
      */
     transform(cos: number, sin: number, x: number, y: number): TrackPath {
-        let xc: number;
-        let yc: number;
         console.log('transform', this.xc, this.yc, (this.xc && this.yc));
-        if (typeof this.xc !== 'undefined' && typeof this.yc !== 'undefined') {
-            xc = cos * this.xc - sin * this.yc + x;
-            yc = sin * this.xc + cos * this.yc + y;
-        }
-        return new TrackPath(
-            cos * this.x1 - sin * this.y1 + x,
-            sin * this.x1 + cos * this.y1 + y,
-            cos * this.x2 - sin * this.y2 + x,
-            sin * this.x2 + cos * this.y2 + y,
-            xc,
-            yc,
-            this.r
-        );
+        let trx = transformPoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
+        return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
 
     isClose(that: TrackPath, close: number): number[] {
@@ -170,54 +173,7 @@ export class TrackRef {
         let thisSin = Math.sin(this.rot);
         let thatCos = Math.cos(that.rot);
         let thatSin = Math.sin(that.rot);
-        // nx = c * px - s * py;
-        // ny = s * px + c * py;
         console.log(thisCos, thisSin, thatCos, thatSin);
-
-        // for (thisTP of this.track.paths) {
-        //     console.log(thisCos, thisTP, thisSin, this.xc);
-        //     let thisX1 = thisCos * thisTP.x1 - thisSin * thisTP.y1 + this.xc;
-        //     let thisY1 = thisSin * thisTP.x1 + thisCos * thisTP.y1 + this.yc;
-        //     let thisX2 = thisCos * thisTP.x2 - thisSin * thisTP.y2 + this.xc;
-        //     let thisY2 = thisSin * thisTP.x2 + thisCos * thisTP.y2 + this.yc;
-        //     for (thatTP of that.track.paths) {
-        //         let thatX1 = thatCos * thatTP.x1 - thatSin * thatTP.y1 + that.xc;
-        //         let thatY1 = thatSin * thatTP.x1 + thatCos * thatTP.y1 + that.yc;
-        //         let thatX2 = thatCos * thatTP.x2 - thatSin * thatTP.y2 + that.xc;
-        //         let thatY2 = thatSin * thatTP.x2 + thatCos * thatTP.y2 + that.yc;
-        //         console.log(thisX1, thisY1, thisX2, thisY2);
-        //         console.log(thatX1, thatY1, thatX2, thatY2);
-        //         if (Math.abs(thisX1 - thatX1) < close
-        //             && Math.abs(thisY1 - thatY1) < close) {
-        //                 targetX = thatX1;
-        //                 targetY = thatY1;
-        //                 myX = thisX1;
-        //                 myY = thisY1;
-        //                 break;
-        //         } else if (Math.abs(thisX1 - thatX2) < close
-        //             && Math.abs(thisY1 - thatY2) < close) {
-        //                 targetX = thatX2;
-        //                 targetY = thatY2;
-        //                 myX = thisX1;
-        //                 myY = thisY1;
-        //                 break;
-        //         } else if (Math.abs(thisX2 - thatX1) < close
-        //             && Math.abs(thisY2 - thatY1) < close) {
-        //                 targetX = thatX1;
-        //                 targetY = thatY1;
-        //                 myX = thisX2;
-        //                 myY = thisY2;
-        //                 break;
-        //         } else if (Math.abs(thisX2 - thatX2) < close
-        //             && Math.abs(thisY2 - thatY2) < close) {
-        //                 targetX = thatX2;
-        //                 targetY = thatY2;
-        //                 myX = thisX2;
-        //                 myY = thisY2;
-        //                 break;
-        //         }
-        //     }
-        // }
 
         closecheck:
         for (thisTP of this.track.paths.map(tp => tp.transform(thisCos, thisSin, this.xc, this.yc))) {
