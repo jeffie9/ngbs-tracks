@@ -1,4 +1,4 @@
-export function transformPoints(
+export function rotatePoints(
         cos: number,
         sin: number,
         x: number,
@@ -54,7 +54,7 @@ export class TrackPath {
      */
     transform(cos: number, sin: number, x: number, y: number): TrackPath {
         console.log('transform', this.xc, this.yc, (this.xc && this.yc));
-        let trx = transformPoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
+        let trx = rotatePoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
         return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
 

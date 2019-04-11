@@ -1,5 +1,5 @@
 import { Component, ViewChild, ElementRef, OnInit } from '@angular/core';
-import { Track, TrackRef } from './track';
+import { Track, TrackRef, rotatePoints } from './track';
 
 @Component({
   selector: 'app-layout',
@@ -189,10 +189,15 @@ export class LayoutComponent implements OnInit {
 
           let diff = pair[0].snapTo(pair[1]);
           console.log('snap', diff);
+          let cos = Math.cos(diff.da);
+          let sin = Math.sin(diff.da);
           selectedTracks.forEach(tr => {
               tr.xc += diff.dx;
               tr.yc += diff.dy;
               tr.rot += diff.da;
+              let pts = rotatePoints(cos, sin, diff.x, diff.y, tr.xc- diff.x, tr.yc - diff.y);
+              tr.xc = pts[0];
+              tr.yc = pts[1];
           });
 
 
