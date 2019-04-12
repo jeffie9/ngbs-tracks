@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, OnInit } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit } from '@angular/core';
 import { Track, TrackRef, rotatePoints } from './track';
 
 @Component({
@@ -6,7 +6,7 @@ import { Track, TrackRef, rotatePoints } from './track';
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.css']
 })
-export class LayoutComponent implements OnInit {
+export class LayoutComponent implements OnInit, AfterViewInit {
 
   @ViewChild('wrapper') wrapper !: ElementRef;
   @ViewChild('canvas') canvas !: ElementRef<HTMLCanvasElement>;
@@ -25,7 +25,7 @@ export class LayoutComponent implements OnInit {
           paths: [
               { x1: -39.02, y1: 3.84, x2: 39.02, y2: 3.84, xc: 0, yc: 200, r: 200 }
           ],
-          outline: 'M-39.02 3.84 A 200 200 0 0 1 39.02 3.84 L 35.12 23.46 A 180 180 0 0 0 -35.12 23.46 Z'
+          outline: 'M -40.96896762338692 -5.96490888467838 A 210 210 0 0 1 40.96896762338692 -5.96490888467838 L 37.06716118306436 13.650796723386208 A 190 190 0 0 0 -37.06716118306436 13.650796723386208 Z'
       }));
       this.trackLibrary.push(Track.fromData({
           id: 2,

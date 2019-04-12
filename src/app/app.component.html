@@ -6,14 +6,11 @@
   </button>
   <div class="collapse navbar-collapse" id="navbarCollapse">
     <ul class="navbar-nav mr-auto">
-      <li class="nav-item active">
-        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      <li class="nav-item" [ngClass]="{'active' : view === 'layout'}">
+        <a class="nav-link" (click)="setView('layout')">Layout</a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#">Link</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
+      <li class="nav-item" [ngClass]="{'active' : view === 'track'}">
+        <a class="nav-link" (click)="setView('track')">Track</a>
       </li>
     </ul>
     <form class="form-inline mt-2 mt-md-0">
@@ -30,11 +27,14 @@
     </div>
   </div>
   <div class="row">
-    <div class="col-sm-1">
-
+    <div class="col-md-2 col-lg-1">
+      <app-library></app-library>
     </div>
-    <div class="col-sm-11">
+    <div class="col-md-10 col-lg-11" *ngIf="view === 'layout'">
       <app-layout></app-layout>
+    </div>
+    <div class="col-md-10 col-lg-11" *ngIf="view === 'track'">
+      <app-track-editor></app-track-editor>
     </div>
   </div>
 </div>
