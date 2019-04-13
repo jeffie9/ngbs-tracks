@@ -1,3 +1,11 @@
-<p>
-  library works!
-</p>
+<ul class="list-group">
+  <li class="list-group-item" *ngFor="let t of tracks"
+      (click)="select(t)">
+    <svg height="100">
+      <text y="12">{{ t.id }}</text>
+      <path [attr.d]="t.svg" 
+        fill="transparent" stroke="black" stroke-width="2"
+        transform="translate(60 50) scale(0.5 0.5)" />
+    </svg>
+  </li>
+</ul>

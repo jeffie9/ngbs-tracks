@@ -89,6 +89,8 @@ export class Track {
     public id: number;
     public paths: TrackPath[];
     public outline: Path2D;
+    public svg: string;
+    public type: string;
 
     static fromData(data: any): Track {
         let t = new Track();
@@ -103,7 +105,9 @@ export class Track {
                 e.yc,
                 e.r);
         });
+        t.svg = data.outline;
         t.outline = new Path2D(data.outline);
+        t.type = data.type;
         return t;
     }    
 

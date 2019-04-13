@@ -1,3 +1,55 @@
 <div>
   <canvas #canvas width="500" height="500"></canvas>
 </div>
+
+<form [formGroup]="trackForm" [ngSwitch]="track.type">
+
+  <div formGroupName="straight" *ngSwitchCase="'straight'">
+    <label>
+      Length:
+      <input type="text" formControlName="length">
+    </label>
+  </div>
+
+  <div formGroupName="curve" *ngSwitchCase="'curve'">
+    <label>
+      Radius:
+      <input type="text" formControlName="radius">
+    </label>
+    <label>
+      Sweep:
+      <input type="text" formControlName="sweep">
+    </label>
+  </div>
+
+  <div formGroupName="turnout" *ngSwitchCase="'turnout'">
+    <label>
+      Length:
+      <input type="text" formControlName="length">
+    </label>
+    <label>
+      Radius:
+      <input type="text" formControlName="radius">
+    </label>
+    <label>
+      Sweep:
+      <input type="text" formControlName="sweep">
+    </label>
+  </div>
+
+  <div formGroupName="crossing" *ngSwitchCase="'crossing'">
+    <label>
+      Length:
+      <input type="text" formControlName="length">
+    </label>
+    <label>
+      Angle:
+      <input type="text" formControlName="angle">
+    </label>
+  </div>
+
+</form>
+
+<div>
+  <pre *ngIf="!!track">{{ track | json }}</pre>
+</div>

@@ -1,3 +1,7 @@
 canvas {
     border: 1px solid black;
 }
+
+input {
+    width: 5em;
+}

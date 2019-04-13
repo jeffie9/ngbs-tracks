@@ -1,24 +1,60 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
-import { Track, rotatePoints, rotatePointsArray } from './track';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import { Track, rotatePointsArray } from './track';
+import { TrackService } from './track.service';
 
 @Component({
     selector: 'app-track-editor',
     templateUrl: './track-editor.component.html',
     styleUrls: ['./track-editor.component.css']
 })
-export class TrackEditorComponent implements OnInit, AfterViewInit {
+export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChild('canvas') canvas : ElementRef<HTMLCanvasElement>;
     private canvasContext: CanvasRenderingContext2D;
+    private valueChanges: Subscription;
+    private trackSelected: Subscription;
     scale = 2;
     track: Track;
+    trackForm = this.fb.group({
+        straight: this.fb.group({
+            length: ['']
+        }),
+        curve: this.fb.group({
+            radius: [''],
+            sweep: ['']
+        }),
+        turnout: this.fb.group({
+            length: [''],
+            radius: [''],
+            sweep: ['']
+        }),
+        crossing: this.fb.group({
+            length: [''],
+            angle: ['']
+        }),
+    });
 
-    constructor() { }
+    constructor(
+            private fb: FormBuilder,
+            private trackService: TrackService) {}
     
     ngOnInit() {
-        //this.track = this.straightTrack(150);
-        //this.track = this.curveTrack(200, 22.5);
-        this.track = this.rightTurnout(6 * 25.400051, 12 * 25.400051, 360.0 / 16);
-        console.log(this.track);
+        this.trackSelected = this.trackService.trackSelected$.subscribe(
+            track => {
+                this.track = track;
+                this.drawTrack();
+                this.updateForm();
+            }
+        );
+        this.track = this.trackService.selectedTrack;
+        this.valueChanges = this.trackForm.valueChanges.subscribe(e => {
+            this.updateTrack(e);
+        });
+
+        // this.track = this.crossing(5 * 25.400051, 30);
+        // this.trackService.getTrackLibrary().push(this.track);
+        // this.updateForm();
     }
 
     ngAfterViewInit() {
@@ -31,8 +67,13 @@ export class TrackEditorComponent implements OnInit, AfterViewInit {
         this.drawTrack();
     }
 
+    ngOnDestroy() {
+        this.trackSelected.unsubscribe();
+        this.valueChanges.unsubscribe();
+    }
+
     drawTrack() {
-        this.canvasContext.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
+        this.canvasContext.clearRect(-this.canvas.nativeElement.width / 2, -this.canvas.nativeElement.height / 2, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
         if (this.track) {
             this.canvasContext.stroke(this.track.outline);
             // temporary markers
@@ -48,6 +89,32 @@ export class TrackEditorComponent implements OnInit, AfterViewInit {
                 this.canvasContext.fill();
             });
         }
+    }
+
+    updateForm() {
+        console.log('updateForm');
+        this.trackForm.reset({}, {emitEvent: false});
+        let fg = this.trackForm.get(this.track.type) as FormGroup;
+        let paths = this.track.paths;       
+        switch (this.track.type) {
+        case 'straight':
+            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / 25.400051, {emitEvent: false});
+            break;
+        }
+    }
+
+    updateTrack(e: any) {
+        console.log('updateTrack', e);
+        let newTrack: Track;
+        switch (this.track.type) {
+        case 'straight':
+            newTrack = this.straightTrack(e.straight.length * 25.400051);
+            this.track.paths = newTrack.paths;
+            this.track.outline = newTrack.outline;
+            this.track.svg = newTrack.svg;
+            break;
+        }
+        this.drawTrack();
     }
 
     straightTrack(len: number): Track {
@@ -124,6 +191,25 @@ export class TrackEditorComponent implements OnInit, AfterViewInit {
             return pt + dy;
         });
         return this.turnoutFromPoints(ptsMain, ptsBranch, radius, 20);
+    }
+
+    crossing(len: number, angle: number): Track {
+        let rads = angle * Math.PI / 360.0;
+        let pts1 = Track.straightPoints(len, 20);
+        pts1 = rotatePointsArray(Math.cos(rads), Math.sin(rads), 0, 0, pts1);
+        let pts2 = Track.straightPoints(len, 20);
+        pts2 = rotatePointsArray(Math.cos(-rads), Math.sin(-rads), 0, 0, pts2);
+
+        return Track.fromData({
+            id: 5,
+            paths: [
+                { x1: pts1[0], y1: pts1[1], x2: pts1[2], y2: pts1[3] },
+                { x1: pts2[0], y1: pts2[1], x2: pts2[2], y2: pts2[3] }
+            ],
+            outline: `M ${pts1[6]} ${pts1[7]} L ${pts1[8]} ${pts1[9]} L ${pts1[10]} ${pts1[11]} L ${pts1[12]} ${pts1[13]} Z
+                      M ${pts2[6]} ${pts2[7]} L ${pts2[8]} ${pts2[9]} L ${pts2[10]} ${pts2[11]} L ${pts2[12]} ${pts2[13]} Z`,
+            type: 'crossing'
+        });
     }
 
 }

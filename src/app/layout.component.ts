@@ -1,5 +1,6 @@
 import { Component, ViewChild, ElementRef, OnInit, AfterViewInit } from '@angular/core';
 import { Track, TrackRef, rotatePoints } from './track';
+import { TrackService } from './track.service';
 
 @Component({
   selector: 'app-layout',
@@ -16,28 +17,17 @@ export class LayoutComponent implements OnInit, AfterViewInit {
   startX: number;
   startY: number;
   dragging = false;
-  trackLibrary = new Array<Track>();
+  trackLibrary: Track[];
   tracks = new Array<TrackRef>();
 
+  constructor(
+      private trackService: TrackService) {}
+
   ngOnInit() {
-      this.trackLibrary.push(Track.fromData({
-          id: 1,
-          paths: [
-              { x1: -39.02, y1: 3.84, x2: 39.02, y2: 3.84, xc: 0, yc: 200, r: 200 }
-          ],
-          outline: 'M -40.96896762338692 -5.96490888467838 A 210 210 0 0 1 40.96896762338692 -5.96490888467838 L 37.06716118306436 13.650796723386208 A 190 190 0 0 0 -37.06716118306436 13.650796723386208 Z'
-      }));
-      this.trackLibrary.push(Track.fromData({
-          id: 2,
-          paths: [
-              { x1: -40, y1: 0, x2: 40, y2: 0 }
-          ],
-          outline: 'M-40 -10 L 40 -10 L 40 10 L -40 10 Z'
-      }));
+      this.trackLibrary = this.trackService.getTrackLibrary();
 
       this.tracks.push(new TrackRef(this.trackLibrary[0], 100, 100, 11.25 * Math.PI / 180.0));
       this.tracks.push(new TrackRef(this.trackLibrary[1], 200, 200, 45.0 * Math.PI / 180.0));
-
   }
 
   ngAfterViewInit() {
