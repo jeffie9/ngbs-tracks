@@ -1,19 +1,21 @@
-import { Component, ViewChild, ElementRef, OnInit, AfterViewInit } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { Track, TrackRef, rotatePoints } from './track';
 import { TrackService } from './track.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.css']
 })
-export class LayoutComponent implements OnInit, AfterViewInit {
+export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @ViewChild('wrapper') wrapper !: ElementRef;
   @ViewChild('canvas') canvas !: ElementRef<HTMLCanvasElement>;
   @ViewChild('glass') glass !: ElementRef<HTMLCanvasElement>;
   private canvasContext: CanvasRenderingContext2D;
   private glassContext: CanvasRenderingContext2D;
+  private trackLibrarySelected: Subscription;
   startX: number;
   startY: number;
   dragging = false;
@@ -25,9 +27,8 @@ export class LayoutComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
       this.trackLibrary = this.trackService.getTrackLibrary();
-
-      this.tracks.push(new TrackRef(this.trackLibrary[0], 100, 100, 11.25 * Math.PI / 180.0));
-      this.tracks.push(new TrackRef(this.trackLibrary[1], 200, 200, 45.0 * Math.PI / 180.0));
+      this.trackLibrarySelected = this.trackService.trackSelected$
+        .subscribe(track => this.addNewTrack(track));
   }
 
   ngAfterViewInit() {
@@ -47,6 +48,10 @@ export class LayoutComponent implements OnInit, AfterViewInit {
       this.glassContext = this.glass.nativeElement.getContext('2d');
 
       this.drawCanvas();
+  }
+
+  ngOnDestroy() {
+    this.trackLibrarySelected.unsubscribe();
   }
 
   drawCanvas() {
@@ -177,19 +182,20 @@ export class LayoutComponent implements OnInit, AfterViewInit {
 
           let pair = TrackRef.findClosestPair(selectedTracks, unselectedTracks);
 
-          let diff = pair[0].snapTo(pair[1]);
-          console.log('snap', diff);
-          let cos = Math.cos(diff.da);
-          let sin = Math.sin(diff.da);
-          selectedTracks.forEach(tr => {
-              tr.xc += diff.dx;
-              tr.yc += diff.dy;
-              tr.rot += diff.da;
-              let pts = rotatePoints(cos, sin, diff.x, diff.y, tr.xc- diff.x, tr.yc - diff.y);
-              tr.xc = pts[0];
-              tr.yc = pts[1];
-          });
-
+          if (pair) {
+            let diff = pair[0].snapTo(pair[1]);
+            console.log('snap', diff);
+            let cos = Math.cos(diff.da);
+            let sin = Math.sin(diff.da);
+            selectedTracks.forEach(tr => {
+                tr.xc += diff.dx;
+                tr.yc += diff.dy;
+                tr.rot += diff.da;
+                let pts = rotatePoints(cos, sin, diff.x, diff.y, tr.xc- diff.x, tr.yc - diff.y);
+                tr.xc = pts[0];
+                tr.yc = pts[1];
+            });
+          }
 
           // clear all the dragging flags
           this.dragging = false;
@@ -201,4 +207,10 @@ export class LayoutComponent implements OnInit, AfterViewInit {
       }
   }
 
+    addNewTrack(t: Track) {
+        let tr = new TrackRef(t, 50, 50, 0);
+        //tr.selected = true;
+        this.tracks.push(tr);
+        this.drawCanvas();
+    }
 }
