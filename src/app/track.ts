@@ -1,17 +1,26 @@
+export function rotatePointsArray(
+    cos: number,
+    sin: number,
+    x: number,
+    y: number,
+    coords: number[]): number[] {
+        for (let i = 0; i < coords.length; i += 2) {
+            if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
+                let newX = cos * coords[i] - sin * coords[i+1] + x;
+                coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
+                coords[i] = newX;
+            }
+        }
+        return coords;
+}
+
 export function rotatePoints(
         cos: number,
         sin: number,
         x: number,
         y: number,
         ...coords: number[]): number[] {
-    for (let i = 0; i < coords.length; i += 2) {
-        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
-            let newX = cos * coords[i] - sin * coords[i+1] + x;
-            coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
-            coords[i] = newX;
-        }
-    }
-    return coords;
+    return rotatePointsArray(cos, sin, x, y, coords);
 }
 
 export class TrackPath {
@@ -129,6 +138,48 @@ export class Track {
         //path.lineTo(-39.02, 3.84);
         path.closePath();
 
+    }
+
+    /**
+     * Calculate the points for a straight track path
+     * @param length track length in millimeters (25.400051 mm / 1 in)
+     * @param width tie (outline) width in millimeters per scale (15 for N)
+     * @returns an array of the centerline endpoints, (undefined) arc center,
+     *     and the clockwise path of outline corner points (four pairs)
+     */
+    public static straightPoints(length: number, width: number): number[] {
+        let halfLength = length / 2;
+        let halfWidth = width / 2;
+        return [-halfLength, 0, halfLength, 0, undefined, undefined,
+            -halfLength, -halfWidth, halfLength, -halfWidth,
+            halfLength, halfWidth, -halfLength, halfWidth];
+    }
+
+    /**
+     * Calculate the points for a curve track path
+     * @param radius curve radius in millimeters (25.400051 mm / 1 in)
+     * @param sweep the curve angular length in degrees (pi = 180 degrees)
+     * @param width tie (outline) width in millimeters per scale (15 for N)
+     * @returns an array of the centerline endpoints, arc center,
+     *     and the clockwise path of outline corner points (four pairs)
+     */
+    public static curvePoints(radius: number, sweep: number, width: number): number[] {
+        let halfWidth = width / 2;
+        let a = Math.PI * (sweep / 360.0 + 0.5);
+        let xc = 0;
+        let yc = radius;
+        let dx = Math.cos(a);
+        let dy = Math.sin(a);
+        let x1 = xc - dx * radius;
+        let y1 = yc - dy * radius;
+        let tx = xc - dx * (radius + halfWidth);
+        let ty = yc - dy * (radius + halfWidth);
+        let bx = xc - dx * (radius - halfWidth);
+        let by = yc - dy * (radius - halfWidth);
+
+        return [-x1, y1, x1, y1, xc, yc,
+            -tx, ty, tx, ty,
+            bx, by, -bx, by];
     }
 }
 
