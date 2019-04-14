@@ -134,6 +134,26 @@ export class Track {
         return t;
     }    
 
+    public toData(): any {
+        return {
+            id: this.id,
+            paths: this.paths.map(e => {
+                let t = {
+                    x1: e.x1,
+                    y1: e.y1,
+                    x2: e.x2,
+                    y2: e.y2
+                };
+                if (e.xc) t['xc'] = e.xc;
+                if (e.yc) t['yc'] = e.yc;
+                if (e.r) t['r'] = e.r;
+                return t;
+            }),
+            outline: this.svg,
+            type: this.type
+        };
+    }
+
     private calculateOutline() {
         var path = new Path2D();
 

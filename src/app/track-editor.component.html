@@ -2,7 +2,7 @@
   <canvas #canvas width="500" height="500"></canvas>
 </div>
 
-<form [formGroup]="trackForm" [ngSwitch]="track.type">
+<form [formGroup]="trackForm" [ngSwitch]="track?.type">
 
   <div formGroupName="straight" *ngSwitchCase="'straight'">
     <label>
@@ -49,6 +49,8 @@
   </div>
 
 </form>
+
+<button (click)="saveLibrary()">Save Library</button>
 
 <div>
   <pre *ngIf="!!track">{{ track | json }}</pre>

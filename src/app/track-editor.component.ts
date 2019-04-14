@@ -93,6 +93,10 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    saveLibrary() {
+        this.trackService.saveTrackLibrary();
+    }
+
     updateForm() {
         console.log('updateForm');
         this.trackForm.reset({}, {emitEvent: false});
