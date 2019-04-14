@@ -1,8 +1,10 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { Track, rotatePointsArray } from './track';
+import { Track, rotatePointsArray, angleBetweenPoints } from './track';
 import { TrackService } from './track.service';
+
+const MM_PER_IN = 25.400051;
 
 @Component({
     selector: 'app-track-editor',
@@ -98,7 +100,20 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         let paths = this.track.paths;       
         switch (this.track.type) {
         case 'straight':
-            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / 25.400051, {emitEvent: false});
+            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
+            break;
+        case 'curve':
+            fg.get('radius').setValue(paths[0].r / MM_PER_IN, {emitEvent: false});
+            fg.get('sweep').setValue(paths[0].calcSweep() * 180 / Math.PI, {emitEvent: false});
+            break;
+        case 'turnout':
+            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
+            fg.get('radius').setValue(paths[1].r / MM_PER_IN, {emitEvent: false});
+            fg.get('sweep').setValue(paths[1].calcSweep() * 180 / Math.PI, {emitEvent: false});
+            break;
+        case 'crossing':
+            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
+            fg.get('angle').setValue(angleBetweenPoints(0, 0, paths[0].x1, paths[0].y1, paths[1].x1, paths[1].y1) * 180 / Math.PI, {emitEvent: false});
             break;
         }
     }
@@ -108,12 +123,26 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         let newTrack: Track;
         switch (this.track.type) {
         case 'straight':
-            newTrack = this.straightTrack(e.straight.length * 25.400051);
-            this.track.paths = newTrack.paths;
-            this.track.outline = newTrack.outline;
-            this.track.svg = newTrack.svg;
+            newTrack = this.straightTrack(e.straight.length * MM_PER_IN);
+            break;
+        case 'curve':
+            newTrack = this.curveTrack(e.curve.radius * MM_PER_IN, e.curve.sweep);
+            break;
+        case 'turnout':
+            if (this.track.paths[0].x1 == this.track.paths[1].x1
+                    && this.track.paths[0].y1 == this.track.paths[1].y1) {
+                newTrack = this.rightTurnout(e.turnout.length * MM_PER_IN, e.turnout.radius * MM_PER_IN, e.turnout.sweep);
+            } else {
+                newTrack = this.leftTurnout(e.turnout.length * MM_PER_IN, e.turnout.radius * MM_PER_IN, e.turnout.sweep);
+            }
+            break;
+        case 'crossing':
+            newTrack = this.crossing(e.crossing.length * MM_PER_IN, e.crossing.angle);
             break;
         }
+        this.track.paths = newTrack.paths;
+        this.track.outline = newTrack.outline;
+        this.track.svg = newTrack.svg;
         this.drawTrack();
     }
 

@@ -23,6 +23,17 @@ export function rotatePoints(
     return rotatePointsArray(cos, sin, x, y, coords);
 }
 
+export function angleBetweenPoints(
+        xc: number, yc: number,
+        x1: number, y1: number,
+        x2: number, y2: number): number {
+    let a = Math.abs(Math.atan2(y1 - yc, x1 - xc) - Math.atan2(y2 - yc, x2 - xc));
+    if (a > Math.PI) {
+        a = Math.abs(a - 2 * Math.PI);
+    }
+    return a;
+}
+
 export class TrackPath {
     constructor(
         public x1: number,
@@ -80,6 +91,18 @@ export class TrackPath {
         } else if (Math.abs(this.x2 - that.x2) < close
             && Math.abs(this.y2 - that.y2) < close) {
                 return [that.x2, that.y2, this.x2, this.y2];
+        }
+    }
+
+    calcSweep(): number {
+        if (this.r && this.r > 0) {
+            // a curved path
+            let a1 = Math.atan2(this.y1 - this.yc, this.x1 - this.xc);
+            let a2 = Math.atan2(this.y2 - this.yc, this.x2 - this.xc);
+            return Math.abs(a1 - a2);
+        } else {
+            // a straight path
+            return 0;
         }
     }
 
