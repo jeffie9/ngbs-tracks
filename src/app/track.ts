@@ -1,17 +1,20 @@
+// prototype tie spacing ~ 19-21 inches
+// prototype tie length ~ 8-8.5 feet
+
 export function rotatePointsArray(
-    cos: number,
-    sin: number,
-    x: number,
-    y: number,
-    coords: number[]): number[] {
-        for (let i = 0; i < coords.length; i += 2) {
-            if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
-                let newX = cos * coords[i] - sin * coords[i+1] + x;
-                coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
-                coords[i] = newX;
-            }
+        cos: number,
+        sin: number,
+        x: number,
+        y: number,
+        coords: number[]): number[] {
+    for (let i = 0; i < coords.length; i += 2) {
+        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
+            let newX = cos * coords[i] - sin * coords[i+1] + x;
+            coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
+            coords[i] = newX;
         }
-        return coords;
+    }
+    return coords;
 }
 
 export function rotatePoints(
@@ -21,6 +24,26 @@ export function rotatePoints(
         y: number,
         ...coords: number[]): number[] {
     return rotatePointsArray(cos, sin, x, y, coords);
+}
+
+export function translatePointsArray(
+        x: number,
+        y: number,
+        coords: number[]): number[] {
+    for (let i = 0; i < coords.length; i += 2) {
+        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
+            coords[i] = coords[i] + x;
+            coords[i+1] = coords[i+1] + y;
+        }
+    }
+    return coords;
+}
+
+export function translatePoints(
+        x: number,
+        y: number,
+        ...coords: number[]): number[] {
+    return translatePointsArray(x, y, coords);
 }
 
 export function angleBetweenPoints(
@@ -34,6 +57,34 @@ export function angleBetweenPoints(
     return a;
 }
 
+export function inchesToScaleFeet(scale: Scale, n: number): number {
+    return scale.ratio * n / 12;
+}
+
+export interface Scale {
+    ratio: number;
+}
+
+export const SCALES = new Map<string, Scale>([
+    ['O', {ratio: 45}],
+    ['HO', {ratio: 87}],
+    ['N', {ratio: 160}],
+]);
+
+export const SCALE_WIDTH = 8.5;
+export const HALF_SCALE_WIDTH = 4.25;
+
+export enum TrackType {
+    Straight = 'straight',
+    Curve = 'curve',
+    Crossing = 'crossing',
+    LeftTurnout = 'left-turnout',
+    RightTurnout = 'right-turnout',
+    WyeTurnout = 'wye-turnout',
+    LeftCurvedTurnout = 'left-curved-turnout',
+    RightCurvedTurnout = 'right-curved-turnout',
+}
+
 export class TrackPath {
     constructor(
         public x1: number,
@@ -42,7 +93,24 @@ export class TrackPath {
         public y2: number,
         public xc: number,
         public yc: number,
-        public r: number) {}
+        public r: number,
+        public a?: number) {}
+
+    static straightPath(length: number): TrackPath {
+        let halfLength = length / 2;
+        return new TrackPath(-halfLength, 0, halfLength, 0, undefined, undefined, undefined);
+    }
+
+    static curvePath(radius: number, sweep: number): TrackPath {
+        let a = Math.PI * (sweep / 360.0 + 0.5);
+        let xc = 0;
+        let yc = radius;
+        let dx = Math.cos(a);
+        let dy = Math.sin(a);
+        let x1 = xc - dx * radius;
+        let y1 = yc - dy * radius;
+        return new TrackPath(-x1, y1, x1, y1, xc, yc, radius, a);
+    }
 
     calcAngleAtPoint(x: number, y: number): number {
         let a: number;
@@ -75,7 +143,21 @@ export class TrackPath {
     transform(cos: number, sin: number, x: number, y: number): TrackPath {
         console.log('transform', this.xc, this.yc, (this.xc && this.yc));
         let trx = rotatePoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
-        return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
+        return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r, this.a);
+    }
+
+    rotate(a: number, x: number = 0, y: number = 0) {
+        let dx = Math.cos(a);
+        let dy = Math.sin(a);
+        [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
+            rotatePoints(Math.cos(a), Math.sin(a), x, y,
+            this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
+    }
+
+    translate(x: number, y: number) {
+        [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
+            translatePoints(x, y,
+            this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
     }
 
     isClose(that: TrackPath, close: number): number[] {
@@ -97,13 +179,62 @@ export class TrackPath {
     calcSweep(): number {
         if (this.r && this.r > 0) {
             // a curved path
-            let a1 = Math.atan2(this.y1 - this.yc, this.x1 - this.xc);
-            let a2 = Math.atan2(this.y2 - this.yc, this.x2 - this.xc);
-            return Math.abs(a1 - a2);
+            return angleBetweenPoints(this.xc, this.yc, this.x1, this.y1, this.x2, this.y2);
         } else {
             // a straight path
             return 0;
         }
+    }
+
+    outline(): string {
+        if (this.r > 0) {
+            return this.curveOutline();
+        } else {
+            return this.straightOutline();
+        }
+    }
+
+    straightOutline(): string {
+        let x = this.x2 - this.x1;
+        let y = this.y2 - this.y1;
+        let length = Math.sqrt(x * x + y * y);
+        let halfLength = length / 2;
+
+        let a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
+        let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, -halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH);
+
+
+        return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]} L ${pts[4]} ${pts[5]} L ${pts[6]} ${pts[7]} Z `;
+        //return `M ${-halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${HALF_SCALE_WIDTH} L ${-halfLength} ${HALF_SCALE_WIDTH} Z `;
+    }
+
+    curveOutline(): string {
+        let sweep = angleBetweenPoints(this.xc, this.yc, this.x1, this.y1, this.x2, this.y2);
+        console.log('sweep', sweep, this.a);
+        let a = this.a;
+        let xc = 0;
+        let yc = this.r;
+        let dx = Math.cos(a);
+        let dy = Math.sin(a);
+        let tx = xc - dx * (this.r + HALF_SCALE_WIDTH);
+        let ty = yc - dy * (this.r + HALF_SCALE_WIDTH);
+        let bx = xc - dx * (this.r - HALF_SCALE_WIDTH);
+        let by = yc - dy * (this.r - HALF_SCALE_WIDTH);
+
+        a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
+        let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, xc, yc, -tx, ty, tx, ty, bx, by, -bx, by);
+        pts = translatePoints(this.xc - pts[0], this.yc - pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[7], pts[8], pts[9]);
+
+        return `M ${pts[0]} ${pts[1]} ` +
+            `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${pts[2]} ${pts[3]} ` +
+            `L ${pts[4]} ${pts[5]} ` +
+            `A ${this.r - HALF_SCALE_WIDTH} ${this.r - HALF_SCALE_WIDTH} 0 0 0 ${pts[6]} ${pts[7]} Z `;
+        
+
+        // return `M ${-tx} ${ty} ` +
+        //     `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${tx} ${ty} ` +
+        //     `L ${bx} ${by} ` +
+        //     `A ${this.r - HALF_SCALE_WIDTH} ${this.r - HALF_SCALE_WIDTH} 0 0 0 ${-bx} ${by} Z `;
     }
 
 }
@@ -134,6 +265,16 @@ export class Track {
         return t;
     }    
 
+    static fromParts(id: number, paths: TrackPath[], outline: string, type: string): Track {
+        let track = new Track();
+        track.id = id;
+        track.paths = paths;
+        track.svg = outline;
+        track.outline = new Path2D(outline);
+        track.type = type;
+        return track;
+    }
+
     public toData(): any {
         return {
             id: this.id,
@@ -144,9 +285,9 @@ export class Track {
                     x2: e.x2,
                     y2: e.y2
                 };
-                if (e.xc) t['xc'] = e.xc;
-                if (e.yc) t['yc'] = e.yc;
-                if (e.r) t['r'] = e.r;
+                if (e.xc != null) t['xc'] = e.xc;
+                if (e.yc != null) t['yc'] = e.yc;
+                if (e.r != null) t['r'] = e.r;
                 return t;
             }),
             outline: this.svg,
@@ -154,37 +295,77 @@ export class Track {
         };
     }
 
-    private calculateOutline() {
-        var path = new Path2D();
+    public static straightTrack(len: number, scale: Scale = SCALES.get('N')): Track {
+        let tp = TrackPath.straightPath(inchesToScaleFeet(scale, len));
+        return Track.fromParts(0,
+            [tp],
+            tp.outline(),
+            'straight');
+    }
 
-        this.paths.forEach(p => {
-            // start with simple lines
-            if (!!p.r) {
-                // is an arc
+    public static curveTrack(radius: number, sweep: number, scale: Scale = SCALES.get('N')): Track {
+        let tp = TrackPath.curvePath(inchesToScaleFeet(scale, radius), sweep);
+        return Track.fromParts(0,
+            [tp],
+            tp.outline(),
+            'curve');
+    }
 
-            }
-        });
+    public static crossing(len: number, angle: number, scale: Scale = SCALES.get('N')): Track {
+        let tp1 = TrackPath.straightPath(inchesToScaleFeet(scale, len));
+        let tp2 = TrackPath.straightPath(inchesToScaleFeet(scale, len));
+        let rads = angle * Math.PI / 360.0;
+        tp1.rotate(rads);
+        tp2.rotate(-rads);
+        return Track.fromParts(0,
+            [ tp1, tp2 ],
+            tp1.outline() + tp2.outline(),
+            'crossing');
+    }
 
-        const r = 200;
-        // half the sweep angle
-        var a = 11.25 * Math.PI / 180.0;
-        var x = 0;
-        var y = 200;
+    public static turnout(len: number, radius: number, sweep: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
+        let tpMain = TrackPath.straightPath(inchesToScaleFeet(scale, len));
+        let tpBranch = TrackPath.curvePath(inchesToScaleFeet(scale, radius), sweep);
+        //let ptsMain = Track.straightPoints(inchesToScaleFeet(scale, len), SCALE_WIDTH);
+        //let ptsBranch = Track.curvePoints(inchesToScaleFeet(scale, radius), sweep, SCALE_WIDTH);
+        // we know the curve is symetric about the y axis
+        let rads = sweep * Math.PI / 360.0 * (left ? -1 : 1);
+        tpBranch.rotate(rads);
+        if (left) {
+            tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
+        } else {
+            tpBranch.translate(tpMain.x1 - tpBranch.x1, tpMain.y1 - tpBranch.y1);
+        }
+        //tpBranch = tpBranch.transform(Math.cos(rads), Math.sin(rads), 0, 0);
+        //ptsBranch = rotatePointsArray(Math.cos(rads), Math.sin(rads), 0, 0, ptsBranch);
+        // let dx = ptsMain[2] - ptsBranch[2];
+        // let dy = ptsMain[3] - ptsBranch[3];
+        // ptsBranch = ptsBranch.map((pt, i) => {
+        //     if (i % 2 === 0) return pt + dx;
+        //     return pt + dy;
+        // });
+        return Track.fromParts(0,
+            [ tpMain, tpBranch ],
+            tpMain.outline() + tpBranch.outline(),
+            'turnout');
+    }
 
-        path.arc(x, y, r, Math.PI / -2 - a, Math.PI / -2 + a);
-        // find where the arc ends
-        x = Math.cos(Math.PI / -2 + a) * r + x;
-        y = Math.sin(Math.PI / -2 + a) * r + y;
-        console.log('right top', x, y);
-        // find the perpendicular at the end of the arc
-        x = Math.cos(Math.PI / -2 + a + Math.PI) * 20 + x;
-        y = Math.sin(Math.PI / -2 + a + Math.PI) * 20 + y;
-        console.log('right bottom', x, y);
-        path.lineTo(x, y);
-        path.arc(0, 200, r - 20, Math.PI / -2 + a, Math.PI / -2 - a, true);
-        //path.lineTo(-39.02, 3.84);
-        path.closePath();
+    public static curveTurnout(mRadius: number, bRadius: number, sweep: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
+        let tpMain = TrackPath.curvePath(inchesToScaleFeet(scale, mRadius), sweep);
+        let tpBranch = TrackPath.curvePath(inchesToScaleFeet(scale, bRadius), sweep * 2);
+        // we know the curve is symetric about the y axis
+        let rads = sweep * Math.PI / 360.0 * (left ? -1 : 1);
+        tpBranch.rotate(rads);
+        if (left) {
+            tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
+        } else {
+            tpBranch.translate(tpMain.x1 - tpBranch.x1, tpMain.y1 - tpBranch.y1);
+        }
 
+        return Track.fromParts(0,
+            [ tpMain, tpBranch ],
+            tpMain.outline() + tpBranch.outline(),
+            'turnout');
     }
 
     /**
@@ -200,6 +381,10 @@ export class Track {
         return [-halfLength, 0, halfLength, 0, undefined, undefined,
             -halfLength, -halfWidth, halfLength, -halfWidth,
             halfLength, halfWidth, -halfLength, halfWidth];
+    }
+
+    public static straightOutline(pts: number[]): string {
+        return `M ${pts[6]} ${pts[7]} L ${pts[8]} ${pts[9]} L ${pts[10]} ${pts[11]} L ${pts[12]} ${pts[13]} Z `;
     }
 
     /**
@@ -226,8 +411,16 @@ export class Track {
 
         return [-x1, y1, x1, y1, xc, yc,
             -tx, ty, tx, ty,
-            bx, by, -bx, by];
+            bx, by, -bx, by, radius];
     }
+
+    public static curveOutline(pts: number[]): string {
+        return `M ${pts[6]} ${pts[7]} ` +
+        `A ${pts[14] + HALF_SCALE_WIDTH} ${pts[14] + HALF_SCALE_WIDTH} 0 0 1 ${pts[8]} ${pts[9]} ` +
+        `L ${pts[10]} ${pts[11]} ` +
+        `A ${pts[14] - HALF_SCALE_WIDTH} ${pts[14] - HALF_SCALE_WIDTH} 0 0 0 ${pts[12]} ${pts[13]} Z `;
+    }
+
 }
 
 export class TrackRef {
@@ -290,6 +483,7 @@ export class TrackRef {
         }
 
         if (targetX && targetY) {
+            console.log('target', targetX, targetY);
             console.log(thisTP);
             console.log(thatTP);
             let a = thatTP.calcAngleAtPoint(targetX, targetY);

@@ -15,20 +15,33 @@ export class TrackService {
 
     constructor(
         private db: AngularFirestore) { 
-        this.trackLibrary; // = TRACK_LIBRARY.map(d => Track.fromData(d));
+        this.trackLibrary;
         //this.selectedTrack = this.trackLibrary[0];
     }
 
     getTrackLibrary() {
-        this.trackLibrary = new Array<Track>();
-        const tc = this.db.collection('libraries/generic/tracks');
-        tc.get().subscribe(t => {
-            t.docs.forEach(d => {
-                console.log(d.data());
-                this.trackLibrary.push(Track.fromData(d.data()));
-            });
-            this.selectedTrack = this.trackLibrary[0];
-        });
+        // this.trackLibrary = TRACK_LIBRARY.map(d => Track.fromData(d));
+
+        // this.trackLibrary = new Array<Track>();
+        // const tc = this.db.collection('libraries/generic/tracks');
+        // tc.get().subscribe(t => {
+        //     t.docs.forEach(d => {
+        //         console.log(d.data());
+        //         this.trackLibrary.push(Track.fromData(d.data()));
+        //     });
+        //     this.selectedTrack = this.trackLibrary[0];
+        // });
+
+        this.trackLibrary = [
+            Track.straightTrack(6),
+            Track.curveTrack(10, 22.5),
+            Track.crossing(6, 30),
+            Track.turnout(6, 10, 22.5, true),
+            Track.turnout(6, 10, 22.5, false),
+            Track.curveTurnout(21.25, 12, 22.5, true),
+            Track.curveTurnout(21.25, 12, 22.5, false),
+        ];
+
         return this.trackLibrary;
     }
 
