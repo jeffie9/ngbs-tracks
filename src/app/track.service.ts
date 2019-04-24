@@ -4,6 +4,24 @@ import { TRACK_LIBRARY } from './mock-library-data';
 import { Subject } from 'rxjs';
 import { AngularFirestore } from '@angular/fire/firestore';
 
+export function inchesToScaleFeet(scale: Scale, n: number): number {
+    return scale.ratio * n / 12;
+}
+
+export function degreesToRadians(degrees: number): number {
+    return Math.PI * degrees / 180.0;
+}
+
+export interface Scale {
+    ratio: number;
+}
+
+export const SCALES = new Map<string, Scale>([
+    ['O', {ratio: 45}],
+    ['HO', {ratio: 87}],
+    ['N', {ratio: 160}],
+]);
+
 @Injectable({
     providedIn: 'root'
 })
@@ -12,6 +30,7 @@ export class TrackService {
     selectedTrack: Track;
     private trackSelectedSource = new Subject<Track>();
     trackSelected$ = this.trackSelectedSource.asObservable();
+    selectedScale = SCALES.get('N');
 
     constructor(
         private db: AngularFirestore) { 
@@ -33,13 +52,13 @@ export class TrackService {
         // });
 
         this.trackLibrary = [
-            Track.straightTrack(6),
-            Track.curveTrack(10, 22.5),
-            Track.crossing(6, 30),
-            Track.turnout(6, 5, true),
-            Track.turnout(6, 5, false),
-            Track.curveTurnout(21.25, 12, 22.5, true),
-            Track.curveTurnout(21.25, 12, 22.5, false),
+            Track.straightTrack(inchesToScaleFeet(this.selectedScale, 6)),
+            Track.curveTrack(inchesToScaleFeet(this.selectedScale, 10), degreesToRadians(22.5)),
+            Track.crossing(inchesToScaleFeet(this.selectedScale, 6), degreesToRadians(30)),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, true),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, false),
+            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), true),
+            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), false),
         ];
 
         return this.trackLibrary;

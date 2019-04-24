@@ -1,6 +1,3 @@
-// prototype tie spacing ~ 19-21 inches
-// prototype tie length ~ 8-8.5 feet
-
 export function rotatePointsArray(
         cos: number,
         sin: number,
@@ -57,20 +54,8 @@ export function angleBetweenPoints(
     return a;
 }
 
-export function inchesToScaleFeet(scale: Scale, n: number): number {
-    return scale.ratio * n / 12;
-}
-
-export interface Scale {
-    ratio: number;
-}
-
-export const SCALES = new Map<string, Scale>([
-    ['O', {ratio: 45}],
-    ['HO', {ratio: 87}],
-    ['N', {ratio: 160}],
-]);
-
+// prototype tie spacing ~ 19-21 inches
+// prototype tie length ~ 8-8.5 feet
 export const SCALE_WIDTH = 8.5;
 export const HALF_SCALE_WIDTH = 4.25;
 
@@ -91,25 +76,25 @@ export class TrackPath {
         public y1: number,
         public x2: number,
         public y2: number,
-        public xc: number,
-        public yc: number,
-        public r: number,
-        public a?: number) {}
+        public xc?: number,
+        public yc?: number,
+        public r?: number) {}
 
     static straightPath(length: number): TrackPath {
         let halfLength = length / 2;
-        return new TrackPath(-halfLength, 0, halfLength, 0, undefined, undefined, undefined);
+        return new TrackPath(-halfLength, 0, halfLength, 0);
     }
 
     static curvePath(radius: number, sweep: number): TrackPath {
-        let a = Math.PI * (sweep / 360.0 + 0.5);
+        // half the angle rotated to human north
+        let a = (sweep + Math.PI) / 2;
         let xc = 0;
         let yc = radius;
         let dx = Math.cos(a);
         let dy = Math.sin(a);
         let x1 = xc - dx * radius;
         let y1 = yc - dy * radius;
-        return new TrackPath(-x1, y1, x1, y1, xc, yc, radius, a);
+        return new TrackPath(-x1, y1, x1, y1, xc, yc, radius);
     }
 
     calcAngleAtPoint(x: number, y: number): number {
@@ -143,12 +128,10 @@ export class TrackPath {
     transform(cos: number, sin: number, x: number, y: number): TrackPath {
         console.log('transform', this.xc, this.yc, (this.xc && this.yc));
         let trx = rotatePoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
-        return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r, this.a);
+        return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
 
     rotate(a: number, x: number = 0, y: number = 0) {
-        let dx = Math.cos(a);
-        let dy = Math.sin(a);
         [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
             rotatePoints(Math.cos(a), Math.sin(a), x, y,
             this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
@@ -205,13 +188,10 @@ export class TrackPath {
         pts = translatePointsArray((this.x2 + this.x1) / 2, (this.y2 + this.y1) / 2, pts);
 
         return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]} L ${pts[4]} ${pts[5]} L ${pts[6]} ${pts[7]} Z `;
-        //return `M ${-halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${HALF_SCALE_WIDTH} L ${-halfLength} ${HALF_SCALE_WIDTH} Z `;
     }
 
     curveOutline(): string {
-        let sweep = angleBetweenPoints(this.xc, this.yc, this.x1, this.y1, this.x2, this.y2);
-        console.log('sweep', sweep, this.a);
-        let a = this.a;
+        let a = (angleBetweenPoints(this.xc, this.yc, this.x1, this.y1, this.x2, this.y2) + Math.PI) / 2;
         let xc = 0;
         let yc = this.r;
         let dx = Math.cos(a);
@@ -221,20 +201,16 @@ export class TrackPath {
         let bx = xc - dx * (this.r - HALF_SCALE_WIDTH);
         let by = yc - dy * (this.r - HALF_SCALE_WIDTH);
 
+        // points are centered on 0,0 - rotation is found by the tilt in the endpoints
         a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
         let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, xc, yc, -tx, ty, tx, ty, bx, by, -bx, by);
+        // translate by the difference between 0,0 and the new path center
         pts = translatePoints(this.xc - pts[0], this.yc - pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[7], pts[8], pts[9]);
 
         return `M ${pts[0]} ${pts[1]} ` +
             `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${pts[2]} ${pts[3]} ` +
             `L ${pts[4]} ${pts[5]} ` +
             `A ${this.r - HALF_SCALE_WIDTH} ${this.r - HALF_SCALE_WIDTH} 0 0 0 ${pts[6]} ${pts[7]} Z `;
-        
-
-        // return `M ${-tx} ${ty} ` +
-        //     `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${tx} ${ty} ` +
-        //     `L ${bx} ${by} ` +
-        //     `A ${this.r - HALF_SCALE_WIDTH} ${this.r - HALF_SCALE_WIDTH} 0 0 0 ${-bx} ${by} Z `;
     }
 
 }
@@ -295,77 +271,60 @@ export class Track {
         };
     }
 
-    public static straightTrack(len: number, scale: Scale = SCALES.get('N')): Track {
-        let tp = TrackPath.straightPath(inchesToScaleFeet(scale, len));
+    public static straightTrack(length: number): Track {
+        let tp = TrackPath.straightPath(length);
         return Track.fromParts(0,
             [tp],
             tp.outline(),
             'straight');
     }
 
-    public static curveTrack(radius: number, sweep: number, scale: Scale = SCALES.get('N')): Track {
-        let tp = TrackPath.curvePath(inchesToScaleFeet(scale, radius), sweep);
+    public static curveTrack(radius: number, sweep: number): Track {
+        let tp = TrackPath.curvePath(radius, sweep);
         return Track.fromParts(0,
             [tp],
             tp.outline(),
             'curve');
     }
 
-    public static crossing(len: number, angle: number, scale: Scale = SCALES.get('N')): Track {
-        let tp1 = TrackPath.straightPath(inchesToScaleFeet(scale, len));
-        let tp2 = TrackPath.straightPath(inchesToScaleFeet(scale, len));
-        let rads = angle * Math.PI / 360.0;
-        tp1.rotate(rads);
-        tp2.rotate(-rads);
+    public static crossing(length: number, angle: number): Track {
+        let tp1 = TrackPath.straightPath(length);
+        let tp2 = TrackPath.straightPath(length);
+        tp1.rotate(angle / 2);
+        tp2.rotate(-angle / 2);
         return Track.fromParts(0,
             [ tp1, tp2 ],
             tp1.outline() + tp2.outline(),
             'crossing');
     }
 
-    public static turnout(length: number, tNumber: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
+    public static turnout(length: number, tNumber: number, left: boolean): Track {
         let rads = Math.atan2(1, tNumber) * (left ? -1 : 1);
-        let tpMain = TrackPath.straightPath(inchesToScaleFeet(scale, length));
-        //let ptsMain = Track.straightPoints(inchesToScaleFeet(scale, len), SCALE_WIDTH);
-        //let ptsBranch = Track.curvePoints(inchesToScaleFeet(scale, radius), sweep, SCALE_WIDTH);
+        let tpMain = TrackPath.straightPath(length);
         // we know the curve is symetric about the y axis
-        let tpBranch = TrackPath.straightPath(inchesToScaleFeet(scale, length));
-        tpBranch.rotate(rads);
-
-        // try a curved branch
         let a = Math.PI / 2 - rads;
         let r = Math.abs(length / (2 * Math.cos(a)));
-        let s = Math.abs((Math.PI - 2 * a) * 180 / Math.PI);
-        let tpCurveBranch = TrackPath.curvePath(inchesToScaleFeet(scale, r), s);
+        let s = Math.abs(Math.PI - 2 * a);
+        let tpCurveBranch = TrackPath.curvePath(r, s);
         tpCurveBranch.rotate(rads);
 
         if (left) {
-            tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
             tpCurveBranch.translate(tpMain.x2 - tpCurveBranch.x2, tpMain.y2 - tpCurveBranch.y2);
         } else {
-            tpBranch.translate(tpMain.x1 - tpBranch.x1, tpMain.y1 - tpBranch.y1);
             tpCurveBranch.translate(tpMain.x1 - tpCurveBranch.x1, tpMain.y1 - tpCurveBranch.y1);
         }
 
-        //tpBranch = tpBranch.transform(Math.cos(rads), Math.sin(rads), 0, 0);
-        //ptsBranch = rotatePointsArray(Math.cos(rads), Math.sin(rads), 0, 0, ptsBranch);
-        // let dx = ptsMain[2] - ptsBranch[2];
-        // let dy = ptsMain[3] - ptsBranch[3];
-        // ptsBranch = ptsBranch.map((pt, i) => {
-        //     if (i % 2 === 0) return pt + dx;
-        //     return pt + dy;
-        // });
         return Track.fromParts(0,
             [ tpMain, tpCurveBranch ],
             tpMain.outline() + tpCurveBranch.outline(),
             'turnout');
     }
 
-    public static curveTurnout(mRadius: number, bRadius: number, sweep: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
-        let tpMain = TrackPath.curvePath(inchesToScaleFeet(scale, mRadius), sweep);
-        let tpBranch = TrackPath.curvePath(inchesToScaleFeet(scale, bRadius), sweep * 2);
+    public static curveTurnout(mRadius: number, bRadius: number, sweep: number, left: boolean): Track {
+        let tpMain = TrackPath.curvePath(mRadius, sweep);
+        let tpBranch = TrackPath.curvePath(bRadius, sweep * 2);
         // we know the curve is symetric about the y axis
-        let rads = sweep * Math.PI / 360.0 * (left ? -1 : 1);
+        let rads = sweep / 2 * (left ? -1 : 1);
         tpBranch.rotate(rads);
         if (left) {
             tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
@@ -377,59 +336,6 @@ export class Track {
             [ tpMain, tpBranch ],
             tpMain.outline() + tpBranch.outline(),
             'turnout');
-    }
-
-    /**
-     * Calculate the points for a straight track path
-     * @param length track length in millimeters (25.400051 mm / 1 in)
-     * @param width tie (outline) width in millimeters per scale (15 for N)
-     * @returns an array of the centerline endpoints, (undefined) arc center,
-     *     and the clockwise path of outline corner points (four pairs)
-     */
-    public static straightPoints(length: number, width: number): number[] {
-        let halfLength = length / 2;
-        let halfWidth = width / 2;
-        return [-halfLength, 0, halfLength, 0, undefined, undefined,
-            -halfLength, -halfWidth, halfLength, -halfWidth,
-            halfLength, halfWidth, -halfLength, halfWidth];
-    }
-
-    public static straightOutline(pts: number[]): string {
-        return `M ${pts[6]} ${pts[7]} L ${pts[8]} ${pts[9]} L ${pts[10]} ${pts[11]} L ${pts[12]} ${pts[13]} Z `;
-    }
-
-    /**
-     * Calculate the points for a curve track path
-     * @param radius curve radius in millimeters (25.400051 mm / 1 in)
-     * @param sweep the curve angular length in degrees (pi = 180 degrees)
-     * @param width tie (outline) width in millimeters per scale (15 for N)
-     * @returns an array of the centerline endpoints, arc center,
-     *     and the clockwise path of outline corner points (four pairs)
-     */
-    public static curvePoints(radius: number, sweep: number, width: number): number[] {
-        let halfWidth = width / 2;
-        let a = Math.PI * (sweep / 360.0 + 0.5);
-        let xc = 0;
-        let yc = radius;
-        let dx = Math.cos(a);
-        let dy = Math.sin(a);
-        let x1 = xc - dx * radius;
-        let y1 = yc - dy * radius;
-        let tx = xc - dx * (radius + halfWidth);
-        let ty = yc - dy * (radius + halfWidth);
-        let bx = xc - dx * (radius - halfWidth);
-        let by = yc - dy * (radius - halfWidth);
-
-        return [-x1, y1, x1, y1, xc, yc,
-            -tx, ty, tx, ty,
-            bx, by, -bx, by, radius];
-    }
-
-    public static curveOutline(pts: number[]): string {
-        return `M ${pts[6]} ${pts[7]} ` +
-        `A ${pts[14] + HALF_SCALE_WIDTH} ${pts[14] + HALF_SCALE_WIDTH} 0 0 1 ${pts[8]} ${pts[9]} ` +
-        `L ${pts[10]} ${pts[11]} ` +
-        `A ${pts[14] - HALF_SCALE_WIDTH} ${pts[14] - HALF_SCALE_WIDTH} 0 0 0 ${pts[12]} ${pts[13]} Z `;
     }
 
 }
