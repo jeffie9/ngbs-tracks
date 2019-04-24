@@ -36,8 +36,8 @@ export class TrackService {
             Track.straightTrack(6),
             Track.curveTrack(10, 22.5),
             Track.crossing(6, 30),
-            Track.turnout(6, 10, 22.5, true),
-            Track.turnout(6, 10, 22.5, false),
+            Track.turnout(6, 5, true),
+            Track.turnout(6, 5, false),
             Track.curveTurnout(21.25, 12, 22.5, true),
             Track.curveTurnout(21.25, 12, 22.5, false),
         ];

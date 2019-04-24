@@ -202,7 +202,7 @@ export class TrackPath {
 
         let a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
         let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, -halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH);
-
+        pts = translatePointsArray((this.x2 + this.x1) / 2, (this.y2 + this.y1) / 2, pts);
 
         return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]} L ${pts[4]} ${pts[5]} L ${pts[6]} ${pts[7]} Z `;
         //return `M ${-halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${-HALF_SCALE_WIDTH} L ${halfLength} ${HALF_SCALE_WIDTH} L ${-halfLength} ${HALF_SCALE_WIDTH} Z `;
@@ -323,19 +323,30 @@ export class Track {
             'crossing');
     }
 
-    public static turnout(len: number, radius: number, sweep: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
-        let tpMain = TrackPath.straightPath(inchesToScaleFeet(scale, len));
-        let tpBranch = TrackPath.curvePath(inchesToScaleFeet(scale, radius), sweep);
+    public static turnout(length: number, tNumber: number, left: boolean, scale: Scale = SCALES.get('N')): Track {
+        let rads = Math.atan2(1, tNumber) * (left ? -1 : 1);
+        let tpMain = TrackPath.straightPath(inchesToScaleFeet(scale, length));
         //let ptsMain = Track.straightPoints(inchesToScaleFeet(scale, len), SCALE_WIDTH);
         //let ptsBranch = Track.curvePoints(inchesToScaleFeet(scale, radius), sweep, SCALE_WIDTH);
         // we know the curve is symetric about the y axis
-        let rads = sweep * Math.PI / 360.0 * (left ? -1 : 1);
+        let tpBranch = TrackPath.straightPath(inchesToScaleFeet(scale, length));
         tpBranch.rotate(rads);
+
+        // try a curved branch
+        let a = Math.PI / 2 - rads;
+        let r = Math.abs(length / (2 * Math.cos(a)));
+        let s = Math.abs((Math.PI - 2 * a) * 180 / Math.PI);
+        let tpCurveBranch = TrackPath.curvePath(inchesToScaleFeet(scale, r), s);
+        tpCurveBranch.rotate(rads);
+
         if (left) {
             tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
+            tpCurveBranch.translate(tpMain.x2 - tpCurveBranch.x2, tpMain.y2 - tpCurveBranch.y2);
         } else {
             tpBranch.translate(tpMain.x1 - tpBranch.x1, tpMain.y1 - tpBranch.y1);
+            tpCurveBranch.translate(tpMain.x1 - tpCurveBranch.x1, tpMain.y1 - tpCurveBranch.y1);
         }
+
         //tpBranch = tpBranch.transform(Math.cos(rads), Math.sin(rads), 0, 0);
         //ptsBranch = rotatePointsArray(Math.cos(rads), Math.sin(rads), 0, 0, ptsBranch);
         // let dx = ptsMain[2] - ptsBranch[2];
@@ -345,8 +356,8 @@ export class Track {
         //     return pt + dy;
         // });
         return Track.fromParts(0,
-            [ tpMain, tpBranch ],
-            tpMain.outline() + tpBranch.outline(),
+            [ tpMain, tpCurveBranch ],
+            tpMain.outline() + tpCurveBranch.outline(),
             'turnout');
     }
 
