@@ -221,6 +221,7 @@ export class Track {
     public outline: Path2D;
     public svg: string;
     public type: string;
+    public label: string;
 
     static fromData(data: any): Track {
         let t = new Track();
@@ -238,16 +239,18 @@ export class Track {
         t.svg = data.outline;
         t.outline = new Path2D(data.outline);
         t.type = data.type;
+        t.label = data.label;
         return t;
     }    
 
-    static fromParts(id: number, paths: TrackPath[], outline: string, type: string): Track {
+    static fromParts(id: number, paths: TrackPath[], outline: string, type: string, label: string): Track {
         let track = new Track();
         track.id = id;
         track.paths = paths;
         track.svg = outline;
         track.outline = new Path2D(outline);
         track.type = type;
+        track.label = label;
         return track;
     }
 
@@ -267,27 +270,30 @@ export class Track {
                 return t;
             }),
             outline: this.svg,
-            type: this.type
+            type: this.type,
+            label: this.label
         };
     }
 
-    public static straightTrack(length: number): Track {
+    public static straightTrack(length: number, label: string = ''): Track {
         let tp = TrackPath.straightPath(length);
         return Track.fromParts(0,
             [tp],
             tp.outline(),
-            'straight');
+            'straight',
+            label);
     }
 
-    public static curveTrack(radius: number, sweep: number): Track {
+    public static curveTrack(radius: number, sweep: number, label: string = ''): Track {
         let tp = TrackPath.curvePath(radius, sweep);
         return Track.fromParts(0,
             [tp],
             tp.outline(),
-            'curve');
+            'curve',
+            label);
     }
 
-    public static crossing(length: number, angle: number): Track {
+    public static crossing(length: number, angle: number, label: string = ''): Track {
         let tp1 = TrackPath.straightPath(length);
         let tp2 = TrackPath.straightPath(length);
         tp1.rotate(angle / 2);
@@ -295,10 +301,11 @@ export class Track {
         return Track.fromParts(0,
             [ tp1, tp2 ],
             tp1.outline() + tp2.outline(),
-            'crossing');
+            'crossing',
+            label);
     }
 
-    public static turnout(length: number, tNumber: number, left: boolean): Track {
+    public static turnout(length: number, tNumber: number, left: boolean, label: string = ''): Track {
         let rads = Math.atan2(1, tNumber) * (left ? -1 : 1);
         let tpMain = TrackPath.straightPath(length);
         // we know the curve is symetric about the y axis
@@ -317,14 +324,19 @@ export class Track {
         return Track.fromParts(0,
             [ tpMain, tpCurveBranch ],
             tpMain.outline() + tpCurveBranch.outline(),
-            'turnout');
+            'turnout',
+            label);
     }
 
-    public static curveTurnout(mRadius: number, bRadius: number, sweep: number, left: boolean): Track {
+    public static curveTurnout(mRadius: number, bRadius: number, sweep: number, left: boolean, label: string = ''): Track {
         let tpMain = TrackPath.curvePath(mRadius, sweep);
-        let tpBranch = TrackPath.curvePath(bRadius, sweep * 2);
-        // we know the curve is symetric about the y axis
-        let rads = sweep / 2 * (left ? -1 : 1);
+        let a = (Math.PI - sweep) / 2;
+        let xc = Math.cos(a) * (mRadius - bRadius) + tpMain.xc;
+        let yc = Math.sin(a) * (mRadius - bRadius) - tpMain.yc;
+        // TODO not exact, but close enough - need to find intersection of inscribed circle circumfrence and outer circle radial
+        let bSweep = angleBetweenPoints(xc, yc, tpMain.x2, tpMain.y2, tpMain.x1, tpMain.y1);
+        let tpBranch = TrackPath.curvePath(bRadius, bSweep);
+        let rads = (bSweep - sweep) / 2 * (left ? -1 : 1);
         tpBranch.rotate(rads);
         if (left) {
             tpBranch.translate(tpMain.x2 - tpBranch.x2, tpMain.y2 - tpBranch.y2);
@@ -335,7 +347,29 @@ export class Track {
         return Track.fromParts(0,
             [ tpMain, tpBranch ],
             tpMain.outline() + tpBranch.outline(),
-            'turnout');
+            'turnout',
+            label);
+    }
+
+    public static wyeTurnout(length: number, tNumber: number, label: string = ''): Track {
+        let rads = Math.atan2(1, tNumber) / 2;
+        let a = Math.PI / 2 - rads;
+        let r = Math.abs(length / (2 * Math.cos(a)));
+        let s = Math.abs(Math.PI - 2 * a);
+        let tpMain = TrackPath.curvePath(r, s);
+        let tpBranch = TrackPath.curvePath(r, s);
+        tpMain.rotate(rads);
+        tpBranch.rotate(Math.PI - rads);
+        let d = (tpMain.y2 - tpBranch.y2) / 2;
+
+        tpMain.translate(0, d);
+        tpBranch.translate(0, -d);
+
+        return Track.fromParts(0,
+            [ tpMain, tpBranch ],
+            tpMain.outline() + tpBranch.outline(),
+            'turnout',
+            label);
     }
 
 }

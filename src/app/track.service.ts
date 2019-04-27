@@ -52,14 +52,19 @@ export class TrackService {
         // });
 
         this.trackLibrary = [
-            Track.straightTrack(inchesToScaleFeet(this.selectedScale, 6)),
-            Track.curveTrack(inchesToScaleFeet(this.selectedScale, 10), degreesToRadians(22.5)),
-            Track.crossing(inchesToScaleFeet(this.selectedScale, 6), degreesToRadians(30)),
-            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, true),
-            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, false),
-            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), true),
-            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), false),
+            Track.straightTrack(inchesToScaleFeet(this.selectedScale, 6), '6" Straight'),
+            Track.curveTrack(inchesToScaleFeet(this.selectedScale, 10), degreesToRadians(22.5), '10" Radius Full Curve'),
+            Track.crossing(inchesToScaleFeet(this.selectedScale, 6), degreesToRadians(30), '30° Crossing'),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, true, '#5 Turnout Left'),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 6), 5, false, '#5 Turnout Right'),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 8), 10, true, '#10 Turnout Left'),
+            Track.turnout(inchesToScaleFeet(this.selectedScale, 8), 10, false, '#10 Turnout Right'),
+            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), true, '21.25" Radius Turnout Left'),
+            Track.curveTurnout(inchesToScaleFeet(this.selectedScale, 21.25), inchesToScaleFeet(this.selectedScale, 12), degreesToRadians(22.5), false, '21.25" Radius Turnout Right'),
+            Track.wyeTurnout(inchesToScaleFeet(this.selectedScale, 6), 2.5, '#2.5 Wye Turnout'),
+            Track.wyeTurnout(inchesToScaleFeet(this.selectedScale, 5), 3.5, '#3.5 Wye Turnout'),
         ];
+        this.trackLibrary.forEach((t, i) => t.id = i);
 
         return this.trackLibrary;
     }
