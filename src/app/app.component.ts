@@ -7,7 +7,7 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
     title = 'ngbs-tracks';
-    view = 'track';
+    view = 'layout';
 
     setView(view: string) {
       this.view = view;

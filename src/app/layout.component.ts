@@ -1,7 +1,9 @@
-import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy, HostListener, TemplateRef } from '@angular/core';
 import { Track, TrackRef, rotatePoints } from './track';
 import { TrackService } from './track.service';
 import { Subscription } from 'rxjs';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { FormBuilder } from '@angular/forms';
 
 @Component({
   selector: 'app-layout',
@@ -13,41 +15,46 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('wrapper') wrapper !: ElementRef;
   @ViewChild('canvas') canvas !: ElementRef<HTMLCanvasElement>;
   @ViewChild('glass') glass !: ElementRef<HTMLCanvasElement>;
+  @ViewChild('createLayoutModal') createLayoutModal: TemplateRef<any>;
   private canvasContext: CanvasRenderingContext2D;
   private glassContext: CanvasRenderingContext2D;
   private trackLibrarySelected: Subscription;
+  layoutLength = 1;
+  layoutWidth = 1;
   startX: number;
   startY: number;
   dragging = false;
-  trackLibrary: Track[];
+  formOpen = false;
   tracks = new Array<TrackRef>();
+  createForm = this.fb.group({
+      name: [''],
+      scale: [''],
+      length: [''],
+      width: ['']
+  });
 
   constructor(
-      private trackService: TrackService) {}
+      private trackService: TrackService,
+      private modalService: NgbModal,
+      private fb: FormBuilder) {}
 
   ngOnInit() {
-      this.trackLibrary = this.trackService.getTrackLibrary();
       this.trackLibrarySelected = this.trackService.trackSelected$
         .subscribe(track => this.addNewTrack(track));
   }
 
   ngAfterViewInit() {
       console.log('ngAfterViewInit', this.wrapper, this.canvas, this.glass);
-      let rect = this.canvas.nativeElement.getBoundingClientRect() as DOMRect;
-      console.log(rect);
-      let canvasX = rect.x + window.scrollX;
-      let canvasY = rect.y + window.scrollY;
-      
-      this.canvas.nativeElement.height = window.innerHeight - canvasY - 2;
-      this.canvas.nativeElement.width = this.wrapper.nativeElement.offsetWidth;
-      //this.canvas.nativeElement.width = window.innerWidth - this.canvasX;
       this.canvasContext = this.canvas.nativeElement.getContext('2d');
-
-      this.glass.nativeElement.height = window.innerHeight - canvasY - 2;
-      this.glass.nativeElement.width = this.wrapper.nativeElement.offsetWidth;
       this.glassContext = this.glass.nativeElement.getContext('2d');
-
-      this.drawCanvas();
+      
+      // hack around ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => {
+        let rect = this.canvas.nativeElement.getBoundingClientRect() as DOMRect;
+        let canvasY = rect.y + window.scrollY;
+        this.layoutWidth = window.innerHeight - canvasY - 2;
+        this.layoutLength = this.wrapper.nativeElement.offsetWidth;
+      });
   }
 
   ngOnDestroy() {
@@ -63,17 +70,14 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
               this.canvasContext.setTransform(1, 0, 0, 1, 0, 0);
               this.canvasContext.translate(tr.xc, tr.yc);
               this.canvasContext.rotate(tr.rot);
+              if (tr.selected) {
+                  this.canvasContext.strokeStyle = 'blue';
+                  this.canvasContext.lineWidth = 2;
+              } else {
+                this.canvasContext.strokeStyle = 'black';
+                this.canvasContext.lineWidth = 1;
+              }
               this.canvasContext.stroke(tr.track.outline);
-              // temporary markers
-              this.canvasContext.beginPath();
-              this.canvasContext.ellipse(tr.track.paths[0].x1, tr.track.paths[0].y1, 3, 3, 0, 0, 2 * Math.PI);
-              this.canvasContext.fill();
-              this.canvasContext.beginPath();
-              this.canvasContext.ellipse(tr.track.paths[0].x2, tr.track.paths[0].y2, 3, 3, 0, 0, 2 * Math.PI);
-              this.canvasContext.fill();
-              this.canvasContext.beginPath();
-              this.canvasContext.ellipse(0, 0, 3, 3, 0, 0, 2 * Math.PI);
-              this.canvasContext.fill();
           });
   }
 
@@ -138,7 +142,7 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
               // TODO start rectangle select
           }
       }
-
+      this.drawCanvas();
   }
 
   mouseMove(e: MouseEvent) {
@@ -207,6 +211,17 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       }
   }
 
+    @HostListener('document:keydown', ['$event'])
+    keyDown(e: KeyboardEvent) {
+        if (!this.formOpen) {
+            console.log('keyDown', e);
+            if (e.code === 'Delete') {
+                this.tracks = this.tracks.filter(tr => !tr.selected);
+                this.drawCanvas();
+            }
+        }
+    }
+
     addNewTrack(t: Track) {
         let tr = new TrackRef(t, 50, 50, 0);
         //tr.selected = true;
@@ -214,15 +229,30 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
         this.drawCanvas();
     }
 
+    createLayout() {
+        this.formOpen = true;
+        this.modalService.open(this.createLayoutModal).result.then(result => {
+            console.log('createLayout', this.createForm.value);
+            // using feet for now
+            this.layoutLength = this.createForm.value.length * this.trackService.selectedScale.ratio;
+            this.layoutWidth = this.createForm.value.width * this.trackService.selectedScale.ratio;
+            this.tracks = new Array<TrackRef>();
+            this.formOpen = false;
+        });
+    }
+
     loadLayout() {
         this.trackService.loadLayoutFromDatabase('myfirst')
         .subscribe(res => {
+            console.log('loaded', res);
             this.tracks = res.trackrefs;
-            this.drawCanvas();
+            this.layoutLength = res.length;
+            this.layoutWidth = res.width;
+            setTimeout(() => this.drawCanvas());
         });
     }
 
     saveLayout() {
-        this.trackService.saveLayoutToDatabase(this.tracks, 'myfirst');
+        this.trackService.saveLayoutToDatabase(this.tracks, 'myfirst', this.layoutLength, this.layoutWidth);
     }
 }

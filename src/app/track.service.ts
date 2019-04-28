@@ -87,10 +87,12 @@ export class TrackService {
         const doc = this.db.collection('layouts').doc(name);
         const tc = doc.collection('tracks');
         const trc = doc.collection('trackrefs');
-        return combineLatest(tc.get(), trc.get())
+        return combineLatest(doc.get(), tc.get(), trc.get())
         .pipe(
-            map(([trackdocs, trackrefdocs]) => {
+            map(([tdoc, trackdocs, trackrefdocs]) => {
                 let response = {
+                    length: tdoc.data().length,
+                    width: tdoc.data().width,
                     tracks: new Array<Track>(),
                     trackrefs: new Array<TrackRef>()
                 };
@@ -114,11 +116,15 @@ export class TrackService {
         );
     }
 
-    saveLayoutToDatabase(layout: TrackRef[], name: string) {
+    saveLayoutToDatabase(layout: TrackRef[], name: string, length: number, width: number) {
         let trackMap = new Map<number, Track>(layout.map(t => [t.track.id, t.track] as [number, Track]));
         let library = new Set<Track>(trackMap.values());
 
         const doc = this.db.collection('layouts').doc(name);
+        doc.set({
+            length: length,
+            width: width
+        })
         const tc = doc.collection('tracks');
         library.forEach(t => {
             tc.doc('' + t.id).set(t.toData());

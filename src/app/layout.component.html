@@ -1,14 +1,15 @@
 <div class="row">
   <div class="col-sm-12">
-    <button (click)="saveLayout()">Save Layout</button>
-    <button (click)="loadLayout()">Load Layout</button>
+    <button class="btn btn-primary" (click)="createLayout()">Create Layout</button>
+    <button class="btn btn-primary" (click)="saveLayout()">Save Layout</button>
+    <button class="btn btn-primary" (click)="loadLayout()">Load Layout</button>
   </div>
 </div>
 <div class="row">
   <div class="col-sm-12">
     <div class="wrapper" #wrapper>
-      <canvas id="canvas" style="z-index: 0" #canvas></canvas>
-      <canvas id="glass" style="z-index: 1" #glass
+      <canvas id="canvas" style="z-index: 0" #canvas [height]="layoutWidth" [width]="layoutLength"></canvas>
+      <canvas id="glass" style="z-index: 1" #glass [height]="layoutWidth" [width]="layoutLength"
           (mousedown)="mouseDown($event)"
           (mousemove)="mouseMove($event)"
           (mouseup)="mouseUp($event)"
@@ -16,3 +17,29 @@
     </div>
   </div>
 </div>
+
+<ng-template #createLayoutModal let-modal>
+  <div class="modal-body">
+    <form [formGroup]="createForm">
+      <div class="form-group">
+        <label for="name">Layout Name</label>
+        <input id="name" type="text" class="form-control" formControlName="name">
+      </div>
+      <div class="form-group">
+          <label for="scale">Scale</label>
+          <input id="scale" type="text" class="form-control" formControlName="scale">
+      </div>
+      <div class="form-group">
+          <label for="length">Length</label>
+          <input id="length" type="text" class="form-control" formControlName="length">
+      </div>
+      <div class="form-group">
+          <label for="width">Width</label>
+          <input id="width" type="text" class="form-control" formControlName="width">
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark" (click)="modal.close('Create click')">Create</button>
+  </div>
+</ng-template>
