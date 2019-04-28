@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { Track } from './track';
+import { Track, TrackRef } from './track';
 import { TRACK_LIBRARY } from './mock-library-data';
-import { Subject } from 'rxjs';
+import { Subject, combineLatest, Observable } from 'rxjs';
 import { AngularFirestore } from '@angular/fire/firestore';
+import { map } from 'rxjs/operators';
 
 export function inchesToScaleFeet(scale: Scale, n: number): number {
     return scale.ratio * n / 12;
@@ -79,6 +80,57 @@ export class TrackService {
         const tc = doc.collection('tracks');
         this.trackLibrary.forEach(t => {
             tc.doc('' + t.id).set(t.toData());
+        });
+    }
+
+    loadLayoutFromDatabase(name: string): Observable<any> {
+        const doc = this.db.collection('layouts').doc(name);
+        const tc = doc.collection('tracks');
+        const trc = doc.collection('trackrefs');
+        return combineLatest(tc.get(), trc.get())
+        .pipe(
+            map(([trackdocs, trackrefdocs]) => {
+                let response = {
+                    tracks: new Array<Track>(),
+                    trackrefs: new Array<TrackRef>()
+                };
+                let trackMap = new Map<number, Track>();
+                trackdocs.docs.forEach(d => {
+                    let t = Track.fromData(d.data());
+                    trackMap.set(d.data().id, t);
+                    response.tracks.push(t);
+                });
+                trackrefdocs.forEach(d => {
+                    let tr = d.data();
+                    response.trackrefs.push(new TrackRef(
+                        trackMap.get(tr.trackId),
+                        tr.xc,
+                        tr.yc,
+                        tr.rot
+                    ));
+                });
+                return response;
+            })
+        );
+    }
+
+    saveLayoutToDatabase(layout: TrackRef[], name: string) {
+        let trackMap = new Map<number, Track>(layout.map(t => [t.track.id, t.track] as [number, Track]));
+        let library = new Set<Track>(trackMap.values());
+
+        const doc = this.db.collection('layouts').doc(name);
+        const tc = doc.collection('tracks');
+        library.forEach(t => {
+            tc.doc('' + t.id).set(t.toData());
+        });
+        const trc = doc.collection('trackrefs');
+        layout.forEach((t, i) => {
+            trc.doc('' + i).set({
+                trackId: t.track.id,
+                xc: t.xc,
+                yc: t.yc,
+                rot: t.rot
+            });
         });
     }
 }

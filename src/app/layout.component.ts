@@ -213,4 +213,16 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
         this.tracks.push(tr);
         this.drawCanvas();
     }
+
+    loadLayout() {
+        this.trackService.loadLayoutFromDatabase('myfirst')
+        .subscribe(res => {
+            this.tracks = res.trackrefs;
+            this.drawCanvas();
+        });
+    }
+
+    saveLayout() {
+        this.trackService.saveLayoutToDatabase(this.tracks, 'myfirst');
+    }
 }
