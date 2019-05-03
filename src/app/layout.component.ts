@@ -1,5 +1,5 @@
 import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy, HostListener, TemplateRef } from '@angular/core';
-import { Track, TrackRef, rotatePoints } from './track';
+import { Track, TrackRef, rotatePoints, angleBetweenPoints } from './track';
 import { TrackService } from './track.service';
 import { Subscription } from 'rxjs';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
@@ -24,6 +24,10 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   startX: number;
   startY: number;
   dragging = false;
+  corX: number;
+  corY: number;
+  startA: number;
+  tool: 'pointer'|'move'|'rotate' = 'pointer';
   formOpen = false;
   tracks = new Array<TrackRef>();
   createForm = this.fb.group({
@@ -81,19 +85,21 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
           });
   }
 
-  drawGlass(offsetX: number, offsetY: number) {
+  drawGlass(offsetX: number, offsetY: number, angle: number) {
       this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
       this.glassContext.clearRect(0, 0, this.glass.nativeElement.width, this.glass.nativeElement.height);
       this.tracks.filter(tr => tr.selected)
       .forEach(tr => {
           this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
           this.glassContext.translate(tr.xc + offsetX, tr.yc + offsetY);
-          this.glassContext.rotate(tr.rot);
+          this.glassContext.rotate(tr.rot + angle);
+          this.glassContext.strokeStyle = 'blue';
+          this.glassContext.lineWidth = 2;
           this.glassContext.stroke(tr.track.outline);
       });
   }
 
-  mouseDown(e: MouseEvent) {
+    mouseDown(e: MouseEvent) {
       console.log('mouseDown', e);
       // tell the browser we're handling this mouse event
       e.preventDefault();
@@ -134,7 +140,23 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
               this.dragging = true;
 
               this.drawCanvas();
-              this.drawGlass(0, 0);
+              this.drawGlass(0, 0, 0);
+          } else if (this.tool === 'rotate') {
+            this.startX = mx;
+            this.startY = my;
+            this.dragging = true;
+            let count = 0;
+            this.corX = 0;
+            this.corY = 0;
+            this.tracks.filter(tr => tr.selected)
+                .forEach(t => {
+                    this.corX += t.xc;
+                    this.corY += t.yc;
+                    count++;
+                });
+            this.corX /= count;
+            this.corY /= count;
+            this.startA = Math.atan2(my - this.corY, mx - this.corX);
           } else {
               // deselect everything
               this.tracks.filter(tr => tr.selected)
@@ -145,22 +167,30 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       this.drawCanvas();
   }
 
-  mouseMove(e: MouseEvent) {
-      if (this.dragging) {
-          // tell the browser we're handling this mouse event
-          e.preventDefault();
-          e.stopPropagation();
-  
-          const rect = this.glass.nativeElement.getBoundingClientRect() as DOMRect;
+    mouseMove(e: MouseEvent) {
+        if (e.buttons === 1) {
+            // tell the browser we're handling this mouse event
+            e.preventDefault();
+            e.stopPropagation();
 
-          // get the current mouse position
-          let mx = e.clientX - rect.left;
-          let my = e.clientY - rect.top;
-              
-          this.drawGlass(mx - this.startX, my - this.startY);
-  
-      }
-  }
+            const rect = this.glass.nativeElement.getBoundingClientRect() as DOMRect;
+
+            // get the current mouse position
+            let mx = e.clientX - rect.left;
+            let my = e.clientY - rect.top;
+            if (this.tool === 'move') {
+                this.drawGlass(mx - this.startX, my - this.startY, 0);
+            } else if (this.tool === 'rotate') {
+                let a = Math.atan2(my - this.corY, mx - this.corX) - this.startA;
+                if (a > 2 * Math.PI) {
+                    a -= 2 * Math.PI;
+                } else if (a < 0) {
+                    a += 2 * Math.PI;
+                }
+                this.drawGlass(0, 0, a);
+            }
+        }
+    }
 
   mouseUp(e: MouseEvent) {
       console.log('mouseUp', e);
@@ -177,10 +207,16 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
           
           // move the tracks before finding the closest pair
           let selectedTracks = this.tracks.filter(tr => tr.selected);
-          selectedTracks.forEach(tr => {
-              tr.xc += mx - this.startX;
-              tr.yc += my - this.startY;
-          });
+          if (this.tool === 'move') {
+            selectedTracks.forEach(tr => {
+                tr.xc += mx - this.startX;
+                tr.yc += my - this.startY;
+            });
+          } else if (this.tool === 'rotate') {
+              selectedTracks.forEach(tr => {
+                  tr.rot += Math.atan2(my - this.corY, mx - this.corX) - this.startA;
+              });
+          }
 
           let unselectedTracks = this.tracks.filter(tr => !tr.selected);
 
@@ -215,9 +251,22 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     keyDown(e: KeyboardEvent) {
         if (!this.formOpen) {
             console.log('keyDown', e);
-            if (e.code === 'Delete') {
+            e.preventDefault();
+            e.stopPropagation();
+            switch (e.code) {
+            case 'Delete':
                 this.tracks = this.tracks.filter(tr => !tr.selected);
                 this.drawCanvas();
+                break;
+            case 'KeyM':
+                this.tool = 'move';
+                break;
+            case 'KeyR':
+                this.tool = 'rotate';
+                break;
+            case 'Space':
+                this.tool = 'pointer';
+                break;
             }
         }
     }

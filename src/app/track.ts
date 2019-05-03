@@ -48,8 +48,12 @@ export function angleBetweenPoints(
         x1: number, y1: number,
         x2: number, y2: number): number {
     let a = Math.abs(Math.atan2(y1 - yc, x1 - xc) - Math.atan2(y2 - yc, x2 - xc));
-    if (a > Math.PI) {
-        a = Math.abs(a - 2 * Math.PI);
+    if (a > 2 * Math.PI) {
+        console.log('reduce a', a, a - 2 * Math.PI);
+        a -= 2 * Math.PI;
+    } else if (a < 0) {
+        console.log('increase a', a, a + 2 * Math.PI);
+        a += 2 * Math.PI;
     }
     return a;
 }
@@ -143,19 +147,32 @@ export class TrackPath {
             this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
     }
 
-    isClose(that: TrackPath, close: number): number[] {
-        if (Math.abs(this.x1 - that.x1) < close
-            && Math.abs(this.y1 - that.y1) < close) {
-                return [that.x1, that.y1, this.x1, this.y1];
-        } else if (Math.abs(this.x1 - that.x2) < close
-            && Math.abs(this.y1 - that.y2) < close) {
-                return [that.x2, that.y2, this.x1, this.y1];
-        } else if (Math.abs(this.x2 - that.x1) < close
-            && Math.abs(this.y2 - that.y1) < close) {
-                return [that.x1, that.y1, this.x2, this.y2];
-        } else if (Math.abs(this.x2 - that.x2) < close
-            && Math.abs(this.y2 - that.y2) < close) {
-                return [that.x2, that.y2, this.x2, this.y2];
+    closestPointTo(that: TrackPath): number[] {
+        let dists = [
+            Math.sqrt((this.x1 - that.x1)*(this.x1 - that.x1)+(this.y1 - that.y1)*(this.y1 - that.y1)),
+            Math.sqrt((this.x1 - that.x2)*(this.x1 - that.x2)+(this.y1 - that.y2)*(this.y1 - that.y2)),
+            Math.sqrt((this.x2 - that.x1)*(this.x2 - that.x1)+(this.y2 - that.y1)*(this.y2 - that.y1)),
+            Math.sqrt((this.x2 - that.x2)*(this.x2 - that.x2)+(this.y2 - that.y2)*(this.y2 - that.y2)),
+        ];
+
+        let min = dists[0];
+        let minIndex = 0;
+        for (let i = 1; i < dists.length; i++) {
+            if (dists[i] < min) {
+                min = dists[i];
+                minIndex = i;
+            }
+        }
+
+        switch (minIndex) {
+        case 0:
+            return [that.x1, that.y1, this.x1, this.y1, dists[0]];
+        case 1:
+            return [that.x2, that.y2, this.x1, this.y1, dists[1]];
+        case 2:
+            return [that.x1, that.y1, this.x2, this.y2, dists[2]];
+        case 3:
+            return [that.x2, that.y2, this.x2, this.y2, dists[3]];
         }
     }
 
@@ -402,14 +419,9 @@ export class TrackRef {
     }
 
     public snapTo(that: TrackRef): {x: number, y: number, dx: number, dy: number, da: number} {
-        const close = 10;
         // find point in common
         let thisTP: TrackPath,
-            thatTP: TrackPath,
-            myX: number,
-            myY: number,
-            targetX: number,
-            targetY: number;
+            thatTP: TrackPath;
         
         let thisCos = Math.cos(this.rot);
         let thisSin = Math.sin(this.rot);
@@ -417,23 +429,32 @@ export class TrackRef {
         let thatSin = Math.sin(that.rot);
         console.log(thisCos, thisSin, thatCos, thatSin);
 
-        closecheck:
+        // go through all track paths (there are four between two turnouts)
+        let closeness = new Array<number[]>();
         for (thisTP of this.track.paths.map(tp => tp.transform(thisCos, thisSin, this.xc, this.yc))) {
             for (thatTP of that.track.paths.map(tp => tp.transform(thatCos, thatSin, that.xc, that.yc))) {
                 console.log(thisTP.x1, thisTP.y1, thisTP.x2, thisTP.y2);
                 console.log(thatTP.x1, thatTP.y1, thatTP.x2, thatTP.y2);
-                let closeness = thisTP.isClose(thatTP, 10);
-                if (closeness) {
-                    targetX = closeness[0];
-                    targetY = closeness[1];
-                    myX = closeness[2];
-                    myY = closeness[3];
-                    break closecheck;
-                }
+                closeness.push(thisTP.closestPointTo(thatTP));
             }
         }
 
-        if (targetX && targetY) {
+        // find the closest two points
+        let min = closeness[0][4];
+        let minIndex = 0;
+        for (let i = 1; i < closeness.length; i++) {
+            if (closeness[i][4] < min) {
+                min = closeness[i][4];
+                minIndex = i;
+            }
+        }
+        
+        // finally, if they are close enough, return the data
+        if (min < 2 * SCALE_WIDTH) {
+            let targetX = closeness[minIndex][0];
+            let targetY = closeness[minIndex][1];
+            let myX = closeness[minIndex][2];
+            let myY = closeness[minIndex][3];
             console.log('target', targetX, targetY);
             console.log(thisTP);
             console.log(thatTP);
