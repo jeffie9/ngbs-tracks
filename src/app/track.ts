@@ -130,7 +130,6 @@ export class TrackPath {
      * @param y 
      */
     transform(cos: number, sin: number, x: number, y: number): TrackPath {
-        console.log('transform', this.xc, this.yc, (this.xc && this.yc));
         let trx = rotatePoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
         return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
@@ -427,18 +426,19 @@ export class TrackRef {
         let thisSin = Math.sin(this.rot);
         let thatCos = Math.cos(that.rot);
         let thatSin = Math.sin(that.rot);
-        console.log(thisCos, thisSin, thatCos, thatSin);
+        console.log(thisCos, thisSin, thatCos, thatSin, this.xc, this.yc);
 
         // go through all track paths (there are four between two turnouts)
         let closeness = new Array<number[]>();
         for (thisTP of this.track.paths.map(tp => tp.transform(thisCos, thisSin, this.xc, this.yc))) {
+            console.log('thisTP', thisTP);
             for (thatTP of that.track.paths.map(tp => tp.transform(thatCos, thatSin, that.xc, that.yc))) {
-                console.log(thisTP.x1, thisTP.y1, thisTP.x2, thisTP.y2);
-                console.log(thatTP.x1, thatTP.y1, thatTP.x2, thatTP.y2);
+                console.log('thatTP', thatTP);
                 closeness.push(thisTP.closestPointTo(thatTP));
             }
         }
 
+        console.log('closeness', closeness);
         // find the closest two points
         let min = closeness[0][4];
         let minIndex = 0;
@@ -448,7 +448,7 @@ export class TrackRef {
                 minIndex = i;
             }
         }
-        
+        console.log('min', min, closeness[minIndex]);
         // finally, if they are close enough, return the data
         if (min < 2 * SCALE_WIDTH) {
             let targetX = closeness[minIndex][0];
