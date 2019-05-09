@@ -1,62 +1,5 @@
-export function rotatePointsArray(
-        cos: number,
-        sin: number,
-        x: number,
-        y: number,
-        coords: number[]): number[] {
-    for (let i = 0; i < coords.length; i += 2) {
-        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
-            let newX = cos * coords[i] - sin * coords[i+1] + x;
-            coords[i+1] = sin * coords[i] + cos * coords[i+1] + y;
-            coords[i] = newX;
-        }
-    }
-    return coords;
-}
-
-export function rotatePoints(
-        cos: number,
-        sin: number,
-        x: number,
-        y: number,
-        ...coords: number[]): number[] {
-    return rotatePointsArray(cos, sin, x, y, coords);
-}
-
-export function translatePointsArray(
-        x: number,
-        y: number,
-        coords: number[]): number[] {
-    for (let i = 0; i < coords.length; i += 2) {
-        if (typeof coords[i] !== 'undefined' && typeof coords[i+1] !== 'undefined') {
-            coords[i] = coords[i] + x;
-            coords[i+1] = coords[i+1] + y;
-        }
-    }
-    return coords;
-}
-
-export function translatePoints(
-        x: number,
-        y: number,
-        ...coords: number[]): number[] {
-    return translatePointsArray(x, y, coords);
-}
-
-export function angleBetweenPoints(
-        xc: number, yc: number,
-        x1: number, y1: number,
-        x2: number, y2: number): number {
-    let a = Math.abs(Math.atan2(y1 - yc, x1 - xc) - Math.atan2(y2 - yc, x2 - xc));
-    if (a > 2 * Math.PI) {
-        console.log('reduce a', a, a - 2 * Math.PI);
-        a -= 2 * Math.PI;
-    } else if (a < 0) {
-        console.log('increase a', a, a + 2 * Math.PI);
-        a += 2 * Math.PI;
-    }
-    return a;
-}
+import { closestPoints, angleBetweenPoints } from './geometry';
+import { Matrix } from './matrix';
 
 // prototype tie spacing ~ 19-21 inches
 // prototype tie length ~ 8-8.5 feet
@@ -129,50 +72,23 @@ export class TrackPath {
      * @param x 
      * @param y 
      */
-    transform(cos: number, sin: number, x: number, y: number): TrackPath {
-        let trx = rotatePoints(cos, sin, x, y, this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
+    transform(mat: Matrix): TrackPath {
+        let trx = mat.applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number[];
         return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
 
-    rotate(a: number, x: number = 0, y: number = 0) {
+    rotate(a: number) {
         [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
-            rotatePoints(Math.cos(a), Math.sin(a), x, y,
-            this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
+            new Matrix()
+                .rotate(a)
+                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number[];
     }
 
     translate(x: number, y: number) {
         [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
-            translatePoints(x, y,
-            this.x1, this.y1, this.x2, this.y2, this.xc, this.yc);
-    }
-
-    closestPointTo(that: TrackPath): number[] {
-        let dists = [
-            Math.sqrt((this.x1 - that.x1)*(this.x1 - that.x1)+(this.y1 - that.y1)*(this.y1 - that.y1)),
-            Math.sqrt((this.x1 - that.x2)*(this.x1 - that.x2)+(this.y1 - that.y2)*(this.y1 - that.y2)),
-            Math.sqrt((this.x2 - that.x1)*(this.x2 - that.x1)+(this.y2 - that.y1)*(this.y2 - that.y1)),
-            Math.sqrt((this.x2 - that.x2)*(this.x2 - that.x2)+(this.y2 - that.y2)*(this.y2 - that.y2)),
-        ];
-
-        let min = dists[0];
-        let minIndex = 0;
-        for (let i = 1; i < dists.length; i++) {
-            if (dists[i] < min) {
-                min = dists[i];
-                minIndex = i;
-            }
-        }
-
-        switch (minIndex) {
-        case 0:
-            return [that.x1, that.y1, this.x1, this.y1, dists[0]];
-        case 1:
-            return [that.x2, that.y2, this.x1, this.y1, dists[1]];
-        case 2:
-            return [that.x1, that.y1, this.x2, this.y2, dists[2]];
-        case 3:
-            return [that.x2, that.y2, this.x2, this.y2, dists[3]];
-        }
+            new Matrix()
+                .translate(x, y)
+                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number [];
     }
 
     calcSweep(): number {
@@ -199,9 +115,10 @@ export class TrackPath {
         let length = Math.sqrt(x * x + y * y);
         let halfLength = length / 2;
 
-        let a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
-        let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, -halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH);
-        pts = translatePointsArray((this.x2 + this.x1) / 2, (this.y2 + this.y1) / 2, pts);
+        let mat = new Matrix()
+            .rotateFromVector(this.x2 - this.x1, this.y2 - this.y1)
+            .translate((this.x2 + this.x1) / 2, (this.y2 + this.y1) / 2);
+        let pts = mat.applyToArray([-halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH]) as number[];
 
         return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]} L ${pts[4]} ${pts[5]} L ${pts[6]} ${pts[7]} Z `;
     }
@@ -218,10 +135,13 @@ export class TrackPath {
         let by = yc - dy * (this.r - HALF_SCALE_WIDTH);
 
         // points are centered on 0,0 - rotation is found by the tilt in the endpoints
-        a = Math.atan2(this.y2 - this.y1, this.x2 - this.x1);
-        let pts = rotatePoints(Math.cos(a), Math.sin(a), 0, 0, xc, yc, -tx, ty, tx, ty, bx, by, -bx, by);
+        let pts = new Matrix()
+            .rotateFromVector(this.x2 - this.x1, this.y2 - this.y1)
+            .applyToArray([xc, yc, -tx, ty, tx, ty, bx, by, -bx, by]) as number[];
         // translate by the difference between 0,0 and the new path center
-        pts = translatePoints(this.xc - pts[0], this.yc - pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[7], pts[8], pts[9]);
+        pts = new Matrix()
+            .translate(this.xc - pts[0], this.yc - pts[1])
+            .applyToArray(pts.slice(2)) as number[];
 
         return `M ${pts[0]} ${pts[1]} ` +
             `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${pts[2]} ${pts[3]} ` +
@@ -418,65 +338,36 @@ export class TrackRef {
     }
 
     public snapTo(that: TrackRef): {x: number, y: number, dx: number, dy: number, da: number} {
-        // find point in common
-        let thisTP: TrackPath,
-            thatTP: TrackPath;
-        
-        let thisCos = Math.cos(this.rot);
-        let thisSin = Math.sin(this.rot);
-        let thatCos = Math.cos(that.rot);
-        let thatSin = Math.sin(that.rot);
-        console.log(thisCos, thisSin, thatCos, thatSin, this.xc, this.yc);
+        let matThis = new Matrix().translate(this.xc,  this.yc).rotate(this.rot);
+        let pathsThis = this.track.paths.map(p => p.transform(matThis));
+        let ptsThis = pathsThis
+            .map(p => [p.x1, p.y1, p.x2, p.y2])
+            .reduce((acc, cur) => acc.concat(cur));
 
-        // go through all track paths (there are four between two turnouts)
-        let closeness = new Array<number[]>();
-        for (thisTP of this.track.paths.map(tp => tp.transform(thisCos, thisSin, this.xc, this.yc))) {
-            console.log('thisTP', thisTP);
-            for (thatTP of that.track.paths.map(tp => tp.transform(thatCos, thatSin, that.xc, that.yc))) {
-                console.log('thatTP', thatTP);
-                closeness.push(thisTP.closestPointTo(thatTP));
-            }
-        }
+        let matThat = new Matrix().translate(that.xc,  that.yc).rotate(that.rot);
+        let pathsThat = that.track.paths.map(p => p.transform(matThat));
+        let ptsThat = pathsThat
+            .map(p => [p.x1, p.y1, p.x2, p.y2])
+            .reduce((acc, cur) => acc.concat(cur));
 
-        console.log('closeness', closeness);
-        // find the closest two points
-        let min = closeness[0][4];
-        let minIndex = 0;
-        for (let i = 1; i < closeness.length; i++) {
-            if (closeness[i][4] < min) {
-                min = closeness[i][4];
-                minIndex = i;
-            }
-        }
-        console.log('min', min, closeness[minIndex]);
-        // finally, if they are close enough, return the data
-        if (min < 2 * SCALE_WIDTH) {
-            let targetX = closeness[minIndex][0];
-            let targetY = closeness[minIndex][1];
-            let myX = closeness[minIndex][2];
-            let myY = closeness[minIndex][3];
-            console.log('target', targetX, targetY);
-            console.log(thisTP);
-            console.log(thatTP);
-            let a = thatTP.calcAngleAtPoint(targetX, targetY);
-            console.log('that angle', a * 180 / Math.PI);
-            let b = thisTP.calcAngleAtPoint(myX, myY) + Math.PI;
-            console.log('this angle', b * 180 / Math.PI);
+        let cp = closestPoints(ptsThis, ptsThat);
+        if (cp[2] < 2 * SCALE_WIDTH) {
+            let targetX = ptsThat[cp[1]];
+            let targetY = ptsThat[cp[1]+1];
+            let myX = ptsThis[cp[0]];
+            let myY = ptsThis[cp[0]+1];
+            let tpThis = pathsThis[Math.floor(cp[0] / 4)];
+            let tpThat = pathsThat[Math.floor(cp[1] / 4)];
+            let angThis = tpThis.calcAngleAtPoint(ptsThis[cp[0]], ptsThis[cp[0]+1]);
+            let angThat = tpThat.calcAngleAtPoint(ptsThat[cp[1]], ptsThat[cp[1]+1]);
             return {
                 x: targetX,
                 y: targetY,
                 dx: targetX - myX,
                 dy: targetY - myY,
-                da: a - b
+                da: angThat - angThis + Math.PI
             };
         }
-        return {
-            x: 0,
-            y: 0,
-            dx: 0,
-            dy: 0,
-            da: 0
-        };
     }
 
 }

@@ -1,4 +1,6 @@
 import { Track, TrackRef, TrackPath } from './track';
+import { Matrix } from './matrix';
+import { closestPoints } from './geometry';
 
 
 describe('Tracks', () => {
@@ -25,12 +27,111 @@ describe('Tracks', () => {
 
     describe('snap', () => {
         it('turnouts at branches', () => {
-            let tc1 = new TrackRef(tTL5, 38, -15, 0);
-            let tc2 = new TrackRef(tTR5, -15, 45, Math.PI / 2 /*1.570796327*/);
+            let tc1 = new TrackRef(tTL5, 470, 117, 0);
+            let tc2 = new TrackRef(tTR5, 468.5449086442771, 101.55416906791874, -3.910175948124065);
 
             let res = tc2.snapTo(tc1);
 
             console.log('res', res, res.da * 180 / Math.PI);
+            let matF = new Matrix()
+                .translate(res.dx, res.dy)
+                .translate(res.x, res.y)
+                .rotate(res.da)
+                .translate(-res.x, -res.y);
+            let f = matF.applyToPoint(tc2.xc, tc2.yc);
+            console.log('f', f);
+        });
+
+        it('turnout branch to main', () => {
+            // special case: these TrackRefs have a common point
+            let trA = new TrackRef(tTR5, 468.5449086442771, 101.55416906791874, -3.910175948124065);
+            let trB = new TrackRef(tTL5, 470, 117, 0);
+
+            let matA = new Matrix().translate(trA.xc,  trA.yc).rotate(trA.rot);
+            let pathsA = trA.track.paths.map(p => p.transform(matA));
+            let ptsA = pathsA
+                .map(p => [p.x1, p.y1, p.x2, p.y2])
+                .reduce((acc, cur) => acc.concat(cur));
+            
+
+            let matB = new Matrix().translate(trB.xc,  trB.yc).rotate(trB.rot);
+            let pathsB = trB.track.paths.map(p => p.transform(matB));
+            let ptsB = pathsB
+                .map(p => [p.x1, p.y1, p.x2, p.y2])
+                .reduce((acc, cur) => acc.concat(cur));
+
+            console.log('reduced paths', ptsA, ptsB);
+
+            let cp = closestPoints(ptsA, ptsB);
+            console.log('closest points', cp);
+
+            let targetX = ptsB[cp[1]];
+            let targetY = ptsB[cp[1]+1];
+            console.log('target', ptsB[cp[1]], ptsB[cp[1]+1]);
+            console.log('me', ptsA[cp[0]], ptsA[cp[0]+1]);
+            console.log('A path / point', Math.floor(cp[0] / 4), cp[0] % 4);
+            console.log('B path / point', Math.floor(cp[1] / 4), cp[1] % 4);
+
+            let tpA = pathsA[Math.floor(cp[0] / 4)];
+            let tpB = pathsB[Math.floor(cp[1] / 4)];
+
+            console.log('paths', tpA, tpB);
+
+            let angA = tpA.calcAngleAtPoint(ptsA[cp[0]], ptsA[cp[0]+1]);
+            let angB = tpB.calcAngleAtPoint(ptsB[cp[1]], ptsB[cp[1]+1]);
+
+            console.log('angles', angA, angB, (angB - angA) * 180 / Math.PI);
+
+            let matF = new Matrix()
+                .translate(targetX, targetY)
+                .rotate(angB - angA + Math.PI)
+                .translate(-targetX, -targetY);
+            let f = matF.applyToPoint(trA.xc, trA.yc);
+
+            console.log('f', f);
+        });
+
+        it('turnout branch to main (try with points)', () => {
+            // special case: these TrackRefs have a common point
+            let trA = new TrackRef(tTR5, 468.5449086442771, 101.55416906791874, -3.910175948124065);
+            let trB = new TrackRef(tTL5, 470, 117, 0);
+
+            let matA = new Matrix().translate(trA.xc,  trA.yc).rotate(trA.rot);
+            let ptsA = trA.track.paths
+                .map(p => [p.x1, p.y1, p.x2, p.y2])
+                .map(arr => matA.applyToArray(arr) as number[])
+                .reduce((acc, cur) => acc.concat(cur));
+            
+
+            let matB = new Matrix().translate(trB.xc,  trB.yc).rotate(trB.rot);
+            let ptsB = trB.track.paths
+                .map(p => [p.x1, p.y1, p.x2, p.y2])
+                .map(arr => matB.applyToArray(arr) as number[])
+                .reduce((acc, cur) => acc.concat(cur));
+
+            console.log('reduced paths', ptsA, ptsB);
+
+            let cp = closestPoints(ptsA, ptsB);
+            console.log('closest points', cp);
+            console.log('target', ptsB[cp[1]], ptsB[cp[1]+1]);
+            console.log('me', ptsA[cp[0]], ptsA[cp[0]+1]);
+            console.log('A path / point', Math.floor(cp[0] / 4), cp[0] % 4);
+            console.log('B path / point', Math.floor(cp[1] / 4), cp[1] % 4);
+
+            let tpA = trA.track.paths[Math.floor(cp[0] / 4)];
+            let tpB = trB.track.paths[Math.floor(cp[1] / 4)];
+
+            console.log('paths', tpA, tpB);
+
+            let ptA = cp[0] % 4 === 0 ? [tpA.x1, tpA.y1] : [tpA.x2, tpA.y2];
+            let ptB = cp[1] % 4 === 0 ? [tpB.x1, tpB.y1] : [tpB.x2, tpB.y2];
+
+            console.log('orig points', ptA, ptB);
+            
+            let angA = tpA.calcAngleAtPoint(ptA[0], ptA[1]) + trA.rot;
+            let angB = tpB.calcAngleAtPoint(ptB[0], ptB[1]) + trB.rot;
+
+            console.log('angles', angA, angB, (angB - angA) * 180 / Math.PI);
         });
     });
 
@@ -47,13 +148,13 @@ describe('Tracks', () => {
         });
 
         it('transforms identity', () => {
-            let transformed = tCF133.paths[0].transform(1, 0, 0, 0);
+            let transformed = tCF133.paths[0].transform(new Matrix());
 
             expect(transformed).toEqual(tCF133.paths[0]);
         });
 
         it('transforms 90 degrees', () => {
-            let transformed = tCF133.paths[0].transform(0, 1, 0, 0);
+            let transformed = tCF133.paths[0].transform(new Matrix().rotateDeg(90));
             console.log(transformed);
         });
     });

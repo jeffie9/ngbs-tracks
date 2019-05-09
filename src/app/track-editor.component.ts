@@ -1,8 +1,9 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { Track, rotatePointsArray, angleBetweenPoints } from './track';
+import { Track } from './track';
 import { TrackService, inchesToScaleFeet, degreesToRadians } from './track.service';
+import { angleBetweenPoints } from './geometry';
 
 const MM_PER_IN = 25.400051;
 

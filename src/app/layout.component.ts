@@ -1,9 +1,10 @@
 import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy, HostListener, TemplateRef } from '@angular/core';
-import { Track, TrackRef, rotatePoints, angleBetweenPoints } from './track';
+import { Track, TrackRef } from './track';
 import { TrackService } from './track.service';
 import { Subscription } from 'rxjs';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder } from '@angular/forms';
+import { Matrix } from './matrix';
 
 @Component({
   selector: 'app-layout',
@@ -224,17 +225,22 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
           if (pair) {
             let diff = pair[0].snapTo(pair[1]);
-            console.log('snap', diff);
-            let cos = Math.cos(diff.da);
-            let sin = Math.sin(diff.da);
-            selectedTracks.forEach(tr => {
-                tr.xc += diff.dx;
-                tr.yc += diff.dy;
-                tr.rot += diff.da;
-                let pts = rotatePoints(cos, sin, diff.x, diff.y, tr.xc- diff.x, tr.yc - diff.y);
-                tr.xc = pts[0];
-                tr.yc = pts[1];
-            });
+            if (diff) {
+                console.log('snap', diff, pair);
+                
+                let matF = new Matrix()
+                    .translate(diff.dx, diff.dy)
+                    .translate(diff.x, diff.y)
+                    .rotate(diff.da)
+                    .translate(-diff.x, -diff.y);
+
+                selectedTracks.forEach(tr => {
+                    let pts = matF.applyToPoint(tr.xc, tr.yc);
+                    tr.xc = pts.x;
+                    tr.yc = pts.y;
+                    tr.rot += diff.da;
+                });
+            }
           }
 
           // clear all the dragging flags
