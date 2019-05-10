@@ -1,16 +1,25 @@
 <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
-  <a class="navbar-brand" href="#">Top navbar</a>
+  <a class="navbar-brand" href="#">Layout Designer</a>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse"
     aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
   <div class="collapse navbar-collapse" id="navbarCollapse">
     <ul class="navbar-nav mr-auto">
-      <li class="nav-item" [ngClass]="{'active' : view === 'layout'}">
-        <a class="nav-link" (click)="setView('layout')">Layout</a>
+      <li ngbDropdown class="nav-item">
+            <a class="nav-link" ngbDropdownToggle>File</a>
+            <div ngbDropdownMenu *ngIf="view === 'layout'">
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('new-layout')">New Layout</button>
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('open-layout')">Open Layout</button>
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('save-layout')">Save Layout</button>
+            </div>
       </li>
-      <li class="nav-item" [ngClass]="{'active' : view === 'track'}">
-        <a class="nav-link" (click)="setView('track')">Track</a>
+      <li ngbDropdown class="nav-item">
+            <a class="nav-link" ngbDropdownToggle>View</a>
+            <div ngbDropdownMenu>
+                <button ngbDropdownItem (click)="setView('layout')">Layout</button>
+                <button ngbDropdownItem (click)="setView('track')">Track</button>
+            </div>
       </li>
     </ul>
   </div>

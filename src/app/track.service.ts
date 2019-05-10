@@ -32,6 +32,8 @@ export class TrackService {
     private trackSelectedSource = new Subject<Track>();
     trackSelected$ = this.trackSelectedSource.asObservable();
     selectedScale = SCALES.get('N');
+    private menuSelectedSource = new Subject<string>();
+    menuSelected$ = this.menuSelectedSource.asObservable();
 
     constructor(
         private db: AngularFirestore) { 
@@ -73,6 +75,10 @@ export class TrackService {
     selectTrack(t: Track) {
         this.selectedTrack = t;
         this.trackSelectedSource.next(t);
+    }
+
+    selectMenuItem(menuId: string) {
+        this.menuSelectedSource.next(menuId);
     }
 
     saveTrackLibrary() {

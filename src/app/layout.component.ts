@@ -20,6 +20,7 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private canvasContext: CanvasRenderingContext2D;
   private glassContext: CanvasRenderingContext2D;
   private trackLibrarySelected: Subscription;
+  private menuItemSelected: Subscription;
   layoutLength = 1;
   layoutWidth = 1;
   startX: number;
@@ -46,6 +47,8 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
       this.trackLibrarySelected = this.trackService.trackSelected$
         .subscribe(track => this.addNewTrack(track));
+      this.menuItemSelected = this.trackService.menuSelected$
+        .subscribe(mi => this.handleMenu(mi));
   }
 
   ngAfterViewInit() {
@@ -64,6 +67,7 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.trackLibrarySelected.unsubscribe();
+    this.menuItemSelected.unsubscribe();
   }
 
   drawCanvas() {
@@ -318,5 +322,20 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     saveLayout() {
         this.trackService.saveLayoutToDatabase(this.tracks, 'myfirst', this.layoutLength, this.layoutWidth);
+    }
+
+    handleMenu(mi: string) {
+        console.log('handleMenu', mi);
+        switch (mi) {
+        case 'new-layout':
+            this.createLayout();
+            break;
+        case 'open-layout':
+            this.loadLayout();
+            break;
+        case 'save-layout':
+            this.saveLayout();
+            break;
+        }
     }
 }
