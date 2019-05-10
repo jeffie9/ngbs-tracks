@@ -48,31 +48,22 @@ export class Matrix {
 		return this.rotate(angle * Math.PI / 180);
     }
 
-    applyToPoint(x: number, y: number): {x: number, y: number} {
-		return {
-			x: x * this.a + y * this.c + this.e,
-			y: x * this.b + y * this.d + this.f
-		};
+    applyToPoint(x: number, y: number): number[] {
+		return [
+			x * this.a + y * this.c + this.e,
+			x * this.b + y * this.d + this.f
+        ];
     }
     
-    applyToArray(points: number[] | {x: number, y: number}[]): number[] | {x: number, y: number}[] {
-		let i = 0, p: any, l: number,
+    applyToArray(points: number[]): number[] {
+        let i = 0,
+            p: number[],
 			mxPoints = [];
 
-		if (typeof points[0] === 'number') {
-
-			l = points.length;
-
-			while(i < l) {
-				p = this.applyToPoint(points[i++] as number, points[i++] as number);
-				mxPoints.push(p.x, p.y);
-			}
-		}
-		else {
-			for(; p = points[i]; i++) {
-				mxPoints.push(this.applyToPoint(p.x, p.y));
-			}
-		}
+        while(i < points.length) {
+            p = this.applyToPoint(points[i++], points[i++]);
+            mxPoints.push(p[0], p[1]);
+        }
 
 		return mxPoints;
     }

@@ -99,14 +99,14 @@ describe('Tracks', () => {
             let matA = new Matrix().translate(trA.xc,  trA.yc).rotate(trA.rot);
             let ptsA = trA.track.paths
                 .map(p => [p.x1, p.y1, p.x2, p.y2])
-                .map(arr => matA.applyToArray(arr) as number[])
+                .map(arr => matA.applyToArray(arr))
                 .reduce((acc, cur) => acc.concat(cur));
             
 
             let matB = new Matrix().translate(trB.xc,  trB.yc).rotate(trB.rot);
             let ptsB = trB.track.paths
                 .map(p => [p.x1, p.y1, p.x2, p.y2])
-                .map(arr => matB.applyToArray(arr) as number[])
+                .map(arr => matB.applyToArray(arr))
                 .reduce((acc, cur) => acc.concat(cur));
 
             console.log('reduced paths', ptsA, ptsB);

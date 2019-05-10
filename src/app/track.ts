@@ -73,7 +73,7 @@ export class TrackPath {
      * @param y 
      */
     transform(mat: Matrix): TrackPath {
-        let trx = mat.applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number[];
+        let trx = mat.applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]);
         return new TrackPath(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], this.r);
     }
 
@@ -81,14 +81,14 @@ export class TrackPath {
         [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
             new Matrix()
                 .rotate(a)
-                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number[];
+                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]);
     }
 
     translate(x: number, y: number) {
         [this.x1, this.y1, this.x2, this.y2, this.xc, this.yc] = 
             new Matrix()
                 .translate(x, y)
-                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]) as number [];
+                .applyToArray([this.x1, this.y1, this.x2, this.y2, this.xc, this.yc]);
     }
 
     calcSweep(): number {
@@ -118,7 +118,7 @@ export class TrackPath {
         let mat = new Matrix()
             .rotateFromVector(this.x2 - this.x1, this.y2 - this.y1)
             .translate((this.x2 + this.x1) / 2, (this.y2 + this.y1) / 2);
-        let pts = mat.applyToArray([-halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH]) as number[];
+        let pts = mat.applyToArray([-halfLength, -HALF_SCALE_WIDTH, halfLength, -HALF_SCALE_WIDTH, halfLength, HALF_SCALE_WIDTH, -halfLength, HALF_SCALE_WIDTH]);
 
         return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]} L ${pts[4]} ${pts[5]} L ${pts[6]} ${pts[7]} Z `;
     }
@@ -137,11 +137,11 @@ export class TrackPath {
         // points are centered on 0,0 - rotation is found by the tilt in the endpoints
         let pts = new Matrix()
             .rotateFromVector(this.x2 - this.x1, this.y2 - this.y1)
-            .applyToArray([xc, yc, -tx, ty, tx, ty, bx, by, -bx, by]) as number[];
+            .applyToArray([xc, yc, -tx, ty, tx, ty, bx, by, -bx, by]);
         // translate by the difference between 0,0 and the new path center
         pts = new Matrix()
             .translate(this.xc - pts[0], this.yc - pts[1])
-            .applyToArray(pts.slice(2)) as number[];
+            .applyToArray(pts.slice(2));
 
         return `M ${pts[0]} ${pts[1]} ` +
             `A ${this.r + HALF_SCALE_WIDTH} ${this.r + HALF_SCALE_WIDTH} 0 0 1 ${pts[2]} ${pts[3]} ` +

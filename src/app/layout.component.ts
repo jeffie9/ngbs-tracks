@@ -92,8 +92,13 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       this.tracks.filter(tr => tr.selected)
       .forEach(tr => {
           this.glassContext.setTransform(1, 0, 0, 1, 0, 0);
+          if (angle !== 0) {
+            this.glassContext.translate(this.corX, this.corY);
+            this.glassContext.rotate(angle);
+            this.glassContext.translate(-this.corX, -this.corY);
+          }
           this.glassContext.translate(tr.xc + offsetX, tr.yc + offsetY);
-          this.glassContext.rotate(tr.rot + angle);
+          this.glassContext.rotate(tr.rot);
           this.glassContext.strokeStyle = 'blue';
           this.glassContext.lineWidth = 2;
           this.glassContext.stroke(tr.track.outline);
@@ -214,8 +219,14 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
                 tr.yc += my - this.startY;
             });
           } else if (this.tool === 'rotate') {
+              let a = Math.atan2(my - this.corY, mx - this.corX) - this.startA;
+              let mat = new Matrix()
+                  .translate(this.corX, this.corY)
+                  .rotate(a)
+                  .translate(-this.corX, -this.corY);
               selectedTracks.forEach(tr => {
-                  tr.rot += Math.atan2(my - this.corY, mx - this.corX) - this.startA;
+                  [tr.xc, tr.yc] = mat.applyToPoint(tr.xc, tr.yc);
+                  tr.rot += a;
               });
           }
 
@@ -235,9 +246,7 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
                     .translate(-diff.x, -diff.y);
 
                 selectedTracks.forEach(tr => {
-                    let pts = matF.applyToPoint(tr.xc, tr.yc);
-                    tr.xc = pts.x;
-                    tr.yc = pts.y;
+                    [tr.xc, tr.yc] = matF.applyToPoint(tr.xc, tr.yc);
                     tr.rot += diff.da;
                 });
             }
