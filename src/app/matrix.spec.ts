@@ -15,20 +15,20 @@ describe('Matrix', () => {
     it('translates', () => {
         let m = new Matrix().translate(12, 13);
         let p = m.applyToPoint(0, 0);
-        expect(p).toEqual({x: 12, y: 13});        
+        expect(p).toEqual([12, 13]);
     });
 
     it('scales', () => {
         let m = new Matrix().scale(2, 3);
         let p = m.applyToPoint(1, 1);
-        expect(p).toEqual({x: 2, y: 3});
+        expect(p).toEqual([2, 3]);
     });
 
     it('rotates', () => {
         let a = Math.atan2(4, 3) - Math.atan2(3, 4);
         let m = new Matrix().rotate(a);
         let p = m.applyToPoint(4, 3);
-        expect(p).toEqual({x: 3, y: 4});
+        expect(p).toEqual([3, 4]);
     });
 
     it('chains operations', () => {
@@ -36,10 +36,10 @@ describe('Matrix', () => {
         let m = new Matrix()
             .translate(2, 12)  // 7, 24
             .rotate(a)         // 5, 12
-            .translate(3, 4);  // 12, 5 
+            .translate(3, 4);  // 12, 5
         let p = m.applyToPoint(9, 1);
-        expect(p.x).toBeCloseTo(7);
-        expect(p.y).toBeCloseTo(24);
+        expect(p[0]).toBeCloseTo(7);
+        expect(p[1]).toBeCloseTo(24);
     });
 
 });
