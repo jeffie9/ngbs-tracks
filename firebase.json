@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "public": "dist/ngbs-tracks",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
