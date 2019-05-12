@@ -13,6 +13,11 @@
                 <button ngbDropdownItem (click)="trackService.selectMenuItem('open-layout')">Open Layout</button>
                 <button ngbDropdownItem (click)="trackService.selectMenuItem('save-layout')">Save Layout</button>
             </div>
+            <div ngbDropdownMenu *ngIf="view === 'track'">
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('new-library')">New Library</button>
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('open-library')">Open Library</button>
+                <button ngbDropdownItem (click)="trackService.selectMenuItem('save-library')">Save Library</button>
+            </div>
       </li>
       <li ngbDropdown class="nav-item">
             <a class="nav-link" ngbDropdownToggle>View</a>

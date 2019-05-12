@@ -10,6 +10,7 @@ describe('LayoutComponent', () => {
   let fixture: ComponentFixture<LayoutComponent>;
   let trackService = jasmine.createSpyObj('TrackService', ['']);
   trackService.trackSelected$ = of({});
+  trackService.menuSelected$ = of({});
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({

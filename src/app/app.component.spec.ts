@@ -1,6 +1,7 @@
 import { TestBed, async } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { Component } from '@angular/core';
+import { AngularFirestore } from '@angular/fire/firestore';
 
 @Component({ selector: 'app-library', template: ''})
 class MockLibraryComponent {}
@@ -12,7 +13,8 @@ class MockLayoutComponent {}
 class MockTrackEditorComponent {}
 
 describe('AppComponent', () => {
-  beforeEach(async(() => {
+    let firestoreService = jasmine.createSpyObj('AngularFirestore', ['']);
+    beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [
         AppComponent,
@@ -20,7 +22,10 @@ describe('AppComponent', () => {
         MockLayoutComponent,
         MockTrackEditorComponent,
       ],
-    }).compileComponents();
+      providers: [
+        { provide: AngularFirestore, useValue: firestoreService }
+      ],
+      }).compileComponents();
   }));
 
   it('should create the app', () => {
@@ -39,6 +44,6 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.debugElement.nativeElement;
-    expect(compiled.querySelector('a.navbar-brand').textContent).toContain('Top navbar');
+    expect(compiled.querySelector('a.navbar-brand').textContent).toContain('Layout Designer');
   });
 });

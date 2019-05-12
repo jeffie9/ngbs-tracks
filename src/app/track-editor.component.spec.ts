@@ -10,6 +10,7 @@ describe('TrackEditorComponent', () => {
   let fixture: ComponentFixture<TrackEditorComponent>;
   let trackService = jasmine.createSpyObj('TrackService', ['']);
   trackService.trackSelected$ = of({});
+  trackService.menuSelected$ = of({});
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({

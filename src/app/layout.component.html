@@ -1,9 +1,11 @@
 <div class="row">
-  <div class="col-sm-12">
-    <button class="btn btn-primary" (click)="createLayout()">Create Layout</button>
-    <button class="btn btn-primary" (click)="saveLayout()">Save Layout</button>
-    <button class="btn btn-primary" (click)="loadLayout()">Load Layout</button>
-  </div>
+    <div class="col-sm-12">
+        <div class="btn-group btn-group-toggle">
+            <button class="btn btn-secondary" [ngClass]="{'active' : tool === 'pointer'}" (click)="tool = 'pointer'">Pointer</button>
+            <button class="btn btn-secondary" [ngClass]="{'active' : tool === 'move'}" (click)="tool = 'move'">Move</button>
+            <button class="btn btn-secondary" [ngClass]="{'active' : tool === 'rotate'}"(click)="tool = 'rotate'">Rotate</button>
+        </div>
+    </div>
 </div>
 <div class="row">
   <div class="col-sm-12">

@@ -17,6 +17,7 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     private canvasContext: CanvasRenderingContext2D;
     private valueChanges: Subscription;
     private trackSelected: Subscription;
+    private menuItemSelected: Subscription;
     scale = 2;
     track: Track;
     trackForm = this.fb.group({
@@ -54,6 +55,8 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         this.valueChanges = this.trackForm.valueChanges.subscribe(e => {
             this.updateTrack(e);
         });
+        this.menuItemSelected = this.trackService.menuSelected$
+        .subscribe(mi => this.handleMenu(mi));
 
         // this.track = this.crossing(5 * 25.400051, 30);
         // this.trackService.getTrackLibrary().push(this.track);
@@ -73,6 +76,7 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     ngOnDestroy() {
         this.trackSelected.unsubscribe();
         this.valueChanges.unsubscribe();
+        this.menuItemSelected.unsubscribe();
     }
 
     drawTrack() {
@@ -169,6 +173,19 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
     crossing(len: number, angle: number): Track {
         return Track.crossing(inchesToScaleFeet(this.trackService.selectedScale, len), degreesToRadians(angle));
+    }
+
+    handleMenu(mi: string) {
+        console.log('handleMenu', mi);
+        switch (mi) {
+        case 'new-library':
+            break;
+        case 'open-library':
+            break;
+        case 'save-library':
+            this.saveLibrary();
+            break;
+        }
     }
 
 }
