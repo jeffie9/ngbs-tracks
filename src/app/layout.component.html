@@ -45,3 +45,19 @@
     <button type="button" class="btn btn-outline-dark" (click)="modal.close('Create click')">Create</button>
   </div>
 </ng-template>
+
+<ng-template #openLayoutModal let-modal>
+    <div class="modal-body">
+        <form [formGroup]="openForm">
+            <div class="form-group">
+                <label for="layoutSelect">Layouts</label>
+                <select class="form-control" size="10" formControlName="layoutId">
+                    <option *ngFor="let lo of layouts" [value]="lo.id">{{ lo.name }}</option>
+                </select>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-dark" (click)="modal.close('Open click')">Open</button>
+    </div>
+</ng-template>

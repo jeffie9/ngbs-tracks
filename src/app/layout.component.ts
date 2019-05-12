@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder } from '@angular/forms';
 import { Matrix } from './matrix';
+import { Layout } from './layout';
 
 @Component({
   selector: 'app-layout',
@@ -17,6 +18,7 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvas !: ElementRef<HTMLCanvasElement>;
   @ViewChild('glass') glass !: ElementRef<HTMLCanvasElement>;
   @ViewChild('createLayoutModal') createLayoutModal: TemplateRef<any>;
+  @ViewChild('openLayoutModal') openLayoutModal: TemplateRef<any>;
   private canvasContext: CanvasRenderingContext2D;
   private glassContext: CanvasRenderingContext2D;
   private trackLibrarySelected: Subscription;
@@ -32,11 +34,16 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   tool: 'pointer'|'move'|'rotate' = 'pointer';
   formOpen = false;
   tracks = new Array<TrackRef>();
+  layout: Layout;
+  layouts: Layout[];
   createForm = this.fb.group({
       name: [''],
       scale: [''],
       length: [''],
       width: ['']
+  });
+  openForm = this.fb.group({
+      layoutId: ['']
   });
 
   constructor(
@@ -305,23 +312,38 @@ export class LayoutComponent implements OnInit, AfterViewInit, OnDestroy {
             this.layoutLength = this.createForm.value.length * this.trackService.selectedScale.ratio;
             this.layoutWidth = this.createForm.value.width * this.trackService.selectedScale.ratio;
             this.tracks = new Array<TrackRef>();
+            this.layout = new Layout();
+            this.layout.name = this.createForm.value.name;
+            this.layout.length = this.createForm.value.length * this.trackService.selectedScale.ratio;
+            this.layout.width = this.createForm.value.width * this.trackService.selectedScale.ratio;
+            this.layout.trackRefs = this.tracks;
             this.formOpen = false;
         });
     }
 
     loadLayout() {
-        this.trackService.loadLayoutFromDatabase('myfirst')
-        .subscribe(res => {
-            console.log('loaded', res);
-            this.tracks = res.trackrefs;
-            this.layoutLength = res.length;
-            this.layoutWidth = res.width;
-            setTimeout(() => this.drawCanvas());
+        this.trackService.getLayouts()
+        .subscribe(list => {
+            this.layouts = list;
+            this.formOpen = true;
+            this.modalService.open(this.openLayoutModal).result.then(dlgRes => {
+                this.formOpen = false;
+                if (dlgRes === 'Open click') {
+                    this.trackService.loadLayoutFromDatabase(this.openForm.value.layoutId)
+                    .subscribe(res => {
+                        this.layout = res;
+                        this.tracks = res.trackRefs;
+                        this.layoutLength = res.length;
+                        this.layoutWidth = res.width;
+                        setTimeout(() => this.drawCanvas());
+                    });
+                }
+            });
         });
     }
 
     saveLayout() {
-        this.trackService.saveLayoutToDatabase(this.tracks, 'myfirst', this.layoutLength, this.layoutWidth);
+        this.trackService.saveLayoutToDatabase(this.layout);
     }
 
     handleMenu(mi: string) {

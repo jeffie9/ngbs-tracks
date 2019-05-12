@@ -4,6 +4,7 @@ import { TRACK_LIBRARY } from './mock-library-data';
 import { Subject, combineLatest, Observable } from 'rxjs';
 import { AngularFirestore } from '@angular/fire/firestore';
 import { map } from 'rxjs/operators';
+import { Layout } from './layout';
 
 export function inchesToScaleFeet(scale: Scale, n: number): number {
     return scale.ratio * n / 12;
@@ -89,54 +90,85 @@ export class TrackService {
         });
     }
 
-    loadLayoutFromDatabase(name: string): Observable<any> {
-        const doc = this.db.collection('layouts').doc(name);
+    getLayouts(): Observable<Layout[]> {
+        return this.db.collection('layouts').get().pipe(
+            map(qs => {
+                const layouts = new Array<Layout>();
+                qs.forEach(d => {
+                    const layout = new Layout();
+                    layout.id = d.id;
+                    layout.name = d.data().name;
+                    layout.length = d.data().length;
+                    layout.width = d.data().width;
+                    layouts.push(layout);
+                });
+                return layouts;
+            })
+        );
+    }
+
+    loadLayoutFromDatabase(id: string): Observable<Layout> {
+        const doc = this.db.collection('layouts').doc(id);
         const tc = doc.collection('tracks');
         const trc = doc.collection('trackrefs');
-        return combineLatest(doc.get(), tc.get(), trc.get())
+        return combineLatest([doc.get(), tc.get(), trc.get()])
         .pipe(
             map(([tdoc, trackdocs, trackrefdocs]) => {
-                let response = {
-                    length: tdoc.data().length,
-                    width: tdoc.data().width,
-                    tracks: new Array<Track>(),
-                    trackrefs: new Array<TrackRef>()
-                };
-                let trackMap = new Map<number, Track>();
+                const layout = new Layout();
+                layout.id = id;
+                layout.name = tdoc.data().name;
+                layout.length = tdoc.data().length;
+                layout.width = tdoc.data().width;
+                layout.tracks = new Array<Track>();
+                layout.trackRefs = new Array<TrackRef>();
+                const trackMap = new Map<number, Track>();
                 trackdocs.docs.forEach(d => {
                     let t = Track.fromData(d.data());
                     trackMap.set(d.data().id, t);
-                    response.tracks.push(t);
+                    layout.tracks.push(t);
                 });
                 trackrefdocs.forEach(d => {
-                    let tr = d.data();
-                    response.trackrefs.push(new TrackRef(
+                    const tr = d.data();
+                    layout.trackRefs.push(new TrackRef(
                         trackMap.get(tr.trackId),
                         tr.xc,
                         tr.yc,
                         tr.rot
                     ));
                 });
-                return response;
+                return layout;
             })
         );
     }
 
-    saveLayoutToDatabase(layout: TrackRef[], name: string, length: number, width: number) {
-        let trackMap = new Map<number, Track>(layout.map(t => [t.track.id, t.track] as [number, Track]));
-        let library = new Set<Track>(trackMap.values());
+    saveLayoutToDatabase(layout: Layout) {
+        if (layout.id === undefined) {
+            this.db.collection('layouts').add({
+                name: layout.name,
+                length: layout.length,
+                width: layout.width
+            })
+            .then(docRef => {
+                layout.id = docRef.id;
+                this.saveLayoutToDatabase(layout);
+            });
+            return;
+        }
 
-        const doc = this.db.collection('layouts').doc(name);
+        let trackMap = new Map<number, Track>(layout.trackRefs.map(t => [t.track.id, t.track] as [number, Track]));
+        let library = new Set<Track>(trackMap.values());
+        const doc = this.db.collection('layouts').doc(layout.id);
         doc.set({
-            length: length,
-            width: width
-        })
+            name: layout.name,
+            length: layout.length,
+            width: layout.width
+        });
         const tc = doc.collection('tracks');
         library.forEach(t => {
             tc.doc('' + t.id).set(t.toData());
         });
         const trc = doc.collection('trackrefs');
-        layout.forEach((t, i) => {
+        layout.trackRefs.forEach((t, i) => {
             trc.doc('' + i).set({
                 trackId: t.track.id,
                 xc: t.xc,
