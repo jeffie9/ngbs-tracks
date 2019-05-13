@@ -127,11 +127,21 @@ describe('Tracks', () => {
             let ptB = cp[1] % 4 === 0 ? [tpB.x1, tpB.y1] : [tpB.x2, tpB.y2];
 
             console.log('orig points', ptA, ptB);
-            
+
             let angA = tpA.calcAngleAtPoint(ptA[0], ptA[1]) + trA.rot;
             let angB = tpB.calcAngleAtPoint(ptB[0], ptB[1]) + trB.rot;
 
             console.log('angles', angA, angB, (angB - angA) * 180 / Math.PI);
+        });
+
+        it('left to right', () => {
+            let trA = new TrackRef(tTL5, 443, 36, 0);
+            let trB = new TrackRef(tTL5, 365.8884339898105, 67.65404085265058, -3.1415926535897936);
+            let trC = new TrackRef(tTR5, 447, 67.37858162210942, 0);
+
+            let pair = TrackRef.findClosestPair([trC], [trA, trB]);
+
+            console.log('closest', pair);
         });
     });
 

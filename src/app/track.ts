@@ -320,12 +320,25 @@ export class TrackRef {
 
     static findClosestPair(a: TrackRef[], b: TrackRef[]): TrackRef[] {
         let pairs = new Array<any>();
-        a.forEach(st => {
-            b.forEach(ut => {
+        a.forEach(at => {
+            let matA = new Matrix().translate(at.xc,  at.yc).rotate(at.rot);
+            let ptsA = at.track.paths
+                .map(p => p.transform(matA))
+                .map(p => [p.x1, p.y1, p.x2, p.y2])
+                .reduce((acc, cur) => acc.concat(cur));
+
+            b.forEach(bt => {
+                let matB = new Matrix().translate(bt.xc,  bt.yc).rotate(bt.rot);
+                let ptsB = bt.track.paths
+                    .map(p => p.transform(matB))
+                    .map(p => [p.x1, p.y1, p.x2, p.y2])
+                    .reduce((acc, cur) => acc.concat(cur));
+
+                let cp = closestPoints(ptsA, ptsB);
                 pairs.push({
-                    st: st,
-                    ut: ut,
-                    dist: Math.sqrt(Math.pow(st.xc - ut.xc, 2) + Math.pow(st.yc - ut.yc, 2))
+                    st: at,
+                    ut: bt,
+                    dist: cp[2]
                 });
             });
         });
