@@ -3,8 +3,9 @@ import { Matrix } from './matrix';
 
 // prototype tie spacing ~ 19-21 inches
 // prototype tie length ~ 8-8.5 feet
-export const SCALE_WIDTH = 8.5;
-export const HALF_SCALE_WIDTH = 4.25;
+// standard rail width
+export const SCALE_WIDTH = 4.708333;
+export const HALF_SCALE_WIDTH = 2.354166;
 
 export enum TrackType {
     Straight = 'straight',
@@ -246,10 +247,11 @@ export class Track {
         let tpMain = TrackPath.straightPath(length);
         // we know the curve is symetric about the y axis
         let a = Math.PI / 2 - rads;
-        let r = Math.abs(length / (2 * Math.cos(a)));
-        let s = Math.abs(Math.PI - 2 * a);
+        let L = Math.sqrt(length * length + length / tNumber * length / tNumber);
+        let r = Math.abs(L / Math.cos(a));
+        let s = Math.abs(rads);
         let tpCurveBranch = TrackPath.curvePath(r, s);
-        tpCurveBranch.rotate(rads);
+        tpCurveBranch.rotate(rads / 2);
 
         if (left) {
             tpCurveBranch.translate(tpMain.x2 - tpCurveBranch.x2, tpMain.y2 - tpCurveBranch.y2);
