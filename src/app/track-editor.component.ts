@@ -2,8 +2,8 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, OnDestroy } fr
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { Track } from './track';
-import { TrackService, inchesToScaleFeet, degreesToRadians } from './track.service';
-import { angleBetweenPoints } from './geometry';
+import { TrackService, inchesToScaleFeet, scaleFeetToInches, degreesToRadians, radiansToDegrees } from './track.service';
+import { angleBetweenPoints, distance } from './geometry';
 
 const MM_PER_IN = 25.400051;
 
@@ -15,12 +15,11 @@ const MM_PER_IN = 25.400051;
 export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChild('canvas') canvas : ElementRef<HTMLCanvasElement>;
     private canvasContext: CanvasRenderingContext2D;
-    private valueChanges: Subscription;
-    private trackSelected: Subscription;
-    private menuItemSelected: Subscription;
-    scale = 2;
+    private subscriptions: Subscription[] = [];
+    scale = 4.5;
     track: Track;
     trackForm = this.fb.group({
+        description: [''],
         straight: this.fb.group({
             length: ['']
         }),
@@ -29,34 +28,62 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
             sweep: ['']
         }),
         turnout: this.fb.group({
+            direction: [''],
+            tNumber: [''],
             length: [''],
             radius: [''],
-            sweep: ['']
+            sweep: [''],
+            lead: ['']
         }),
         crossing: this.fb.group({
             length: [''],
             angle: ['']
+        }),
+        curveTurnout: this.fb.group({
+            direction: [''],
+            mainRadius: [''],
+            mainSweep: [''],
+            branchRadius: [''],
+            branchSweep: ['']
+        }),
+        wyeTurnout: this.fb.group({
+            mainRadius: [''],
+            mainSweep: [''],
+            branchRadius: [''],
+            branchSweep: ['']
         }),
     });
 
     constructor(
             private fb: FormBuilder,
             private trackService: TrackService) {}
-    
+
     ngOnInit() {
-        this.trackSelected = this.trackService.trackSelected$.subscribe(
+        this.subscriptions.push(this.trackService.trackSelected$.subscribe(
             track => {
                 this.track = track;
                 this.drawTrack();
                 this.updateForm();
             }
-        );
+        ));
         this.track = this.trackService.selectedTrack;
-        this.valueChanges = this.trackForm.valueChanges.subscribe(e => {
-            this.updateTrack(e);
-        });
-        this.menuItemSelected = this.trackService.menuSelected$
-        .subscribe(mi => this.handleMenu(mi));
+        this.subscriptions.push(this.trackForm.get('description').valueChanges.subscribe(e => {
+            this.updateTrackDescription(e);
+        }));
+        this.subscriptions.push(this.trackForm.get('straight').valueChanges.subscribe(e => {
+            this.updateStraightTrack(e);
+        }));
+        this.subscriptions.push(this.trackForm.get('curve').valueChanges.subscribe(e => {
+            this.updateCurveTrack(e);
+        }));
+        this.subscriptions.push(this.trackForm.get('crossing').valueChanges.subscribe(e => {
+            this.updateCrossingTrack(e);
+        }));
+        this.subscriptions.push(this.trackForm.get('turnout').valueChanges.subscribe(e => {
+            this.updateTurnoutTrack(e);
+        }));
+        this.subscriptions.push(this.trackService.menuSelected$
+        .subscribe(mi => this.handleMenu(mi)));
 
         // this.track = this.crossing(5 * 25.400051, 30);
         // this.trackService.getTrackLibrary().push(this.track);
@@ -74,27 +101,26 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.trackSelected.unsubscribe();
-        this.valueChanges.unsubscribe();
-        this.menuItemSelected.unsubscribe();
+        this.subscriptions.forEach(s => s.unsubscribe());
     }
 
     drawTrack() {
         this.canvasContext.clearRect(-this.canvas.nativeElement.width / 2, -this.canvas.nativeElement.height / 2, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
         if (this.track) {
+            this.canvasContext.strokeStyle = 'blue';
             this.canvasContext.stroke(this.track.outline);
             // temporary markers
-            this.canvasContext.beginPath();
-            this.canvasContext.ellipse(0, 0, 2, 2, 0, 0, 2 * Math.PI);
-            this.canvasContext.fill();
-            this.track.paths.forEach(p => {
-                this.canvasContext.beginPath();
-                this.canvasContext.ellipse(p.x1, p.y1, 2, 2, 0, 0, 2 * Math.PI);
-                this.canvasContext.fill();
-                this.canvasContext.beginPath();
-                this.canvasContext.ellipse(p.x2, p.y2, 2, 2, 0, 0, 2 * Math.PI);
-                this.canvasContext.fill();
-            });
+            // this.canvasContext.beginPath();
+            // this.canvasContext.ellipse(0, 0, 2, 2, 0, 0, 2 * Math.PI);
+            // this.canvasContext.fill();
+            // this.track.paths.forEach(p => {
+            //     this.canvasContext.beginPath();
+            //     this.canvasContext.ellipse(p.x1, p.y1, 2, 2, 0, 0, 2 * Math.PI);
+            //     this.canvasContext.fill();
+            //     this.canvasContext.beginPath();
+            //     this.canvasContext.ellipse(p.x2, p.y2, 2, 2, 0, 0, 2 * Math.PI);
+            //     this.canvasContext.fill();
+            // });
         }
     }
 
@@ -104,75 +130,91 @@ export class TrackEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
     updateForm() {
         console.log('updateForm');
-        this.trackForm.reset({}, {emitEvent: false});
-        let fg = this.trackForm.get(this.track.type) as FormGroup;
-        let paths = this.track.paths;       
+        this.trackForm.reset({
+            description: this.track.label
+        }, {emitEvent: false});
+        const fg = this.trackForm.get(this.track.type) as FormGroup;
+        const paths = this.track.paths;
         switch (this.track.type) {
         case 'straight':
-            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
+            fg.get('length').setValue(scaleFeetToInches(this.trackService.selectedScale,
+                Math.abs(paths[0].x2 - paths[0].x1)), {emitEvent: false});
             break;
         case 'curve':
-            fg.get('radius').setValue(paths[0].r / MM_PER_IN, {emitEvent: false});
-            fg.get('sweep').setValue(paths[0].calcSweep() * 180 / Math.PI, {emitEvent: false});
+            fg.get('radius').setValue(scaleFeetToInches(this.trackService.selectedScale, paths[0].r), {emitEvent: false});
+            fg.get('sweep').setValue(radiansToDegrees(paths[0].calcSweep()), {emitEvent: false});
             break;
         case 'turnout':
-            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
-            fg.get('radius').setValue(paths[1].r / MM_PER_IN, {emitEvent: false});
-            fg.get('sweep').setValue(paths[1].calcSweep() * 180 / Math.PI, {emitEvent: false});
+            fg.get('length').setValue(scaleFeetToInches(this.trackService.selectedScale,
+                Math.abs(paths[0].x2 - paths[0].x1)), {emitEvent: false});
+            fg.get('radius').setValue(scaleFeetToInches(this.trackService.selectedScale, paths[1].r), {emitEvent: false});
+            fg.get('sweep').setValue(radiansToDegrees(paths[1].calcSweep()), {emitEvent: false});
+            if (this.track.paths[0].y1 === this.track.paths[1].y1) {
+                fg.get('direction').setValue('right');
+                fg.get('lead').setValue(scaleFeetToInches(this.trackService.selectedScale, this.track.paths[0].x2 - this.track.paths[1].x2));
+            } else {
+                fg.get('direction').setValue('left');
+                fg.get('lead').setValue(scaleFeetToInches(this.trackService.selectedScale, this.track.paths[1].x1 - this.track.paths[0].x1));
+            }
             break;
         case 'crossing':
-            fg.get('length').setValue(Math.abs(paths[0].x2 - paths[0].x1) / MM_PER_IN, {emitEvent: false});
-            fg.get('angle').setValue(angleBetweenPoints(0, 0, paths[0].x1, paths[0].y1, paths[1].x1, paths[1].y1) * 180 / Math.PI, {emitEvent: false});
+            fg.get('length').setValue(scaleFeetToInches(this.trackService.selectedScale,
+                distance(paths[0].x1, paths[0].y1, paths[0].x2, paths[0].y2)), {emitEvent: false});
+            fg.get('angle').setValue(radiansToDegrees(
+                angleBetweenPoints(0, 0, paths[0].x2, paths[0].y2, paths[1].x2, paths[1].y2)), {emitEvent: false});
             break;
         }
     }
 
-    updateTrack(e: any) {
-        console.log('updateTrack', e);
-        let newTrack: Track;
-        switch (this.track.type) {
-        case 'straight':
-            newTrack = this.straightTrack(e.straight.length * MM_PER_IN);
-            break;
-        case 'curve':
-            newTrack = this.curveTrack(e.curve.radius * MM_PER_IN, e.curve.sweep);
-            break;
-        case 'turnout':
-            if (this.track.paths[0].x1 == this.track.paths[1].x1
-                    && this.track.paths[0].y1 == this.track.paths[1].y1) {
-                newTrack = this.rightTurnout(e.turnout.length * MM_PER_IN, e.turnout.radius * MM_PER_IN, e.turnout.sweep);
-            } else {
-                newTrack = this.leftTurnout(e.turnout.length * MM_PER_IN, e.turnout.radius * MM_PER_IN, e.turnout.sweep);
-            }
-            break;
-        case 'crossing':
-            newTrack = this.crossing(e.crossing.length * MM_PER_IN, e.crossing.angle);
-            break;
-        }
+    updateTrack(newTrack: Track) {
         this.track.paths = newTrack.paths;
         this.track.outline = newTrack.outline;
         this.track.svg = newTrack.svg;
         this.drawTrack();
     }
 
-    straightTrack(len: number): Track {
-        return Track.straightTrack(inchesToScaleFeet(this.trackService.selectedScale, len));
-    }
-  
-    curveTrack(radius: number, sweep: number): Track {
-        return Track.curveTrack(inchesToScaleFeet(this.trackService.selectedScale, radius), degreesToRadians(sweep));
+    updateTrackDescription(e: any) {
+        console.log('updateTrackDescription', e);
     }
 
-    leftTurnout(len: number, radius: number, sweep: number): Track {
-        return Track.turnout(inchesToScaleFeet(this.trackService.selectedScale, len), 5, true);
+    updateStraightTrack(e: any) {
+        console.log('updateStraightTrack', e);
+        if (e.length > 0) {
+            const newTrack = Track.straightTrack(inchesToScaleFeet(this.trackService.selectedScale, e.length));
+            this.track.paths = newTrack.paths;
+            this.track.outline = newTrack.outline;
+            this.track.svg = newTrack.svg;
+            this.drawTrack();
+        }
     }
 
-    rightTurnout(len: number, radius: number, sweep: number): Track {
-        return Track.turnout(inchesToScaleFeet(this.trackService.selectedScale, len), 5, false);
+    updateCurveTrack(e: any) {
+        console.log('updateCurveTrack', e);
+        if (e.radius > 0 && e.sweep > 0) {
+            const newTrack = Track.curveTrack(inchesToScaleFeet(this.trackService.selectedScale, e.radius), degreesToRadians(e.sweep));
+            this.updateTrack(newTrack);
+        }
     }
 
-    crossing(len: number, angle: number): Track {
-        return Track.crossing(inchesToScaleFeet(this.trackService.selectedScale, len), degreesToRadians(angle));
+    updateCrossingTrack(e: any) {
+        console.log('updateCrossingTrack', e);
+        if (e.length > 0 && e.angle > 0) {
+            const newTrack = Track.crossing(inchesToScaleFeet(this.trackService.selectedScale, e.length), degreesToRadians(e.angle));
+            this.updateTrack(newTrack);
+        }
+    }
+
+    updateTurnoutTrack(e: any) {
+        console.log('updateTurnoutTrack', e);
+        if (e.length > 0 && e.radius > 0) {
+            const newTrack = Track.turnout(
+                inchesToScaleFeet(this.trackService.selectedScale, e.length),
+                inchesToScaleFeet(this.trackService.selectedScale, e.radius),
+                degreesToRadians(e.sweep),
+                inchesToScaleFeet(this.trackService.selectedScale, e.lead || 0),
+                e.direction === 'left');
+            this.updateTrack(newTrack);
+        }
     }
 
     handleMenu(mi: string) {

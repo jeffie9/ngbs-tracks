@@ -22,15 +22,23 @@ export function closestPoints(a: number[], b: number[]): number[] {
 export function angleBetweenPoints(
         xc: number, yc: number,
         x1: number, y1: number,
-        x2: number, y2: number): number {
+        x2: number, y2: number,
+        normalize = false): number {
     let a = Math.abs(Math.atan2(y1 - yc, x1 - xc) - Math.atan2(y2 - yc, x2 - xc));
-    if (a > 2 * Math.PI) {
-        console.log('reduce a', a, a - 2 * Math.PI);
-        a -= 2 * Math.PI;
-    } else if (a < 0) {
-        console.log('increase a', a, a + 2 * Math.PI);
-        a += 2 * Math.PI;
+    if (normalize) {
+        console.log('normalizing a', a);
+        while (a > Math.PI) {
+            a -= Math.PI;
+        }
+        while (a < 0) {
+           a += Math.PI;
+        }
     }
     return a;
 }
 
+export function distance(x1: number, y1: number, x2: number, y2: number): number {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return Math.sqrt(dx * dx + dy * dy);
+}

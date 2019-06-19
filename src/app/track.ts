@@ -178,7 +178,7 @@ export class Track {
         t.type = data.type;
         t.label = data.label;
         return t;
-    }    
+    }
 
     static fromParts(id: number, paths: TrackPath[], outline: string, type: string, label: string): Track {
         let track = new Track();
@@ -189,27 +189,6 @@ export class Track {
         track.type = type;
         track.label = label;
         return track;
-    }
-
-    public toData(): any {
-        return {
-            id: this.id,
-            paths: this.paths.map(e => {
-                let t = {
-                    x1: e.x1,
-                    y1: e.y1,
-                    x2: e.x2,
-                    y2: e.y2
-                };
-                if (e.xc != null) t['xc'] = e.xc;
-                if (e.yc != null) t['yc'] = e.yc;
-                if (e.r != null) t['r'] = e.r;
-                return t;
-            }),
-            outline: this.svg,
-            type: this.type,
-            label: this.label
-        };
     }
 
     public static straightTrack(length: number, label: string = ''): Track {
@@ -242,21 +221,15 @@ export class Track {
             label);
     }
 
-    public static turnout(length: number, tNumber: number, left: boolean, label: string = ''): Track {
-        let rads = Math.atan2(1, tNumber) * (left ? -1 : 1);
+    public static turnout(length: number, radius: number, sweep: number, lead: number, left: boolean, label: string = ''): Track {
         let tpMain = TrackPath.straightPath(length);
-        // we know the curve is symetric about the y axis
-        let a = Math.PI / 2 - rads;
-        let L = Math.sqrt(length * length + length / tNumber * length / tNumber);
-        let r = Math.abs(L / Math.cos(a));
-        let s = Math.abs(rads);
-        let tpCurveBranch = TrackPath.curvePath(r, s);
-        tpCurveBranch.rotate(rads / 2);
+        let tpCurveBranch = TrackPath.curvePath(radius, sweep);
+        tpCurveBranch.rotate(sweep * (left ? -1 : 1) / 2);
 
         if (left) {
-            tpCurveBranch.translate(tpMain.x2 - tpCurveBranch.x2, tpMain.y2 - tpCurveBranch.y2);
+            tpCurveBranch.translate(tpMain.x2 - tpCurveBranch.x2 - lead, tpMain.y2 - tpCurveBranch.y2);
         } else {
-            tpCurveBranch.translate(tpMain.x1 - tpCurveBranch.x1, tpMain.y1 - tpCurveBranch.y1);
+            tpCurveBranch.translate(tpMain.x1 - tpCurveBranch.x1 + lead, tpMain.y1 - tpCurveBranch.y1);
         }
 
         return Track.fromParts(0,
@@ -308,6 +281,27 @@ export class Track {
             tpMain.outline() + tpBranch.outline(),
             'turnout',
             label);
+    }
+
+    public toData(): any {
+        return {
+            id: this.id,
+            paths: this.paths.map(e => {
+                let t = {
+                    x1: e.x1,
+                    y1: e.y1,
+                    x2: e.x2,
+                    y2: e.y2
+                };
+                if (e.xc != null) t['xc'] = e.xc;
+                if (e.yc != null) t['yc'] = e.yc;
+                if (e.r != null) t['r'] = e.r;
+                return t;
+            }),
+            outline: this.svg,
+            type: this.type,
+            label: this.label
+        };
     }
 
 }
