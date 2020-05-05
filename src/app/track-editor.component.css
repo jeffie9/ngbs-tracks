@@ -5,3 +5,12 @@ canvas {
 input {
     width: 5em;
 }
+
+#wrapper {
+    background-image:  url('../assets/images/tracks3.jpg');
+    /* background-position: -4.6cm -14.0cm; */
+    /* background-position: -4.4cm -6.1cm; */
+    /*background-position: 0.2cm 1.9cm;*/ /* #5 */
+    /*background-position: 0.2cm -4.1cm;*/ /* #7 */
+    background-position: -0.8cm -10cm; /* #10 */
+}

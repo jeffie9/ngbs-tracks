@@ -8,7 +8,7 @@ import { TrackService } from './track.service';
 })
 export class AppComponent {
     title = 'ngbs-tracks';
-    view = 'layout';
+    view = 'track';
 
     constructor(
         public trackService: TrackService) {}
